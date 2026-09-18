@@ -28,10 +28,13 @@ struct FlutterRunnerApp: App {
                 Button("Hot Restart") { Task { await model.hotRestart() } }
                     .keyboardShortcut("r", modifiers: [.command, .shift]).disabled(!model.canReload)
                 Divider()
-                Toggle("Auto Reload on Save", isOn: Binding(get: { model.autoReload }, set: { model.autoReload = $0 }))
+                Toggle("Reload on Save", isOn: Binding(get: { model.autoReload }, set: { model.autoReload = $0 }))
+                    .keyboardShortcut("a", modifiers: [.command, .shift])
                 Button("Refresh Devices") { Task { await model.refreshDevices() } }
                     .keyboardShortcut("d", modifiers: [.command, .shift])
                 Divider()
+                Toggle("Follow Logs", isOn: Binding(get: { model.followLogs }, set: { model.followLogs = $0 }))
+                    .keyboardShortcut("f", modifiers: [.command, .shift])
                 Button("Clear Logs") { model.clearLogs() }.keyboardShortcut("k")
             }
         }
