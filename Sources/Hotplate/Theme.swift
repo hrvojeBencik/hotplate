@@ -43,15 +43,24 @@ enum Theme {
 extension View {
     /// A raised control surface: Liquid Glass on macOS 26+, material with a hairline elsewhere.
     @ViewBuilder func cardSurface(cornerRadius: CGFloat = 14) -> some View {
+        // Liquid Glass needs the macOS 26 SDK (Xcode 26 / Swift 6.2); older toolchains get the material fallback.
+        #if swift(>=6.2)
         if #available(macOS 26.0, *) {
             self.glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
                 .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).strokeBorder(.primary.opacity(0.10)))
                 .shadow(color: .black.opacity(0.10), radius: 12, y: 5)
         } else {
-            self.background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).strokeBorder(.primary.opacity(0.10)))
-                .shadow(color: .black.opacity(0.10), radius: 12, y: 5)
+            materialSurface(cornerRadius: cornerRadius)
         }
+        #else
+        materialSurface(cornerRadius: cornerRadius)
+        #endif
+    }
+
+    private func materialSurface(cornerRadius: CGFloat) -> some View {
+        self.background(.regularMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).strokeBorder(.primary.opacity(0.10)))
+            .shadow(color: .black.opacity(0.10), radius: 12, y: 5)
     }
 }
 
