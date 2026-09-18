@@ -11,6 +11,7 @@ struct FlutterRunnerApp: App {
             MainWindow().environment(model).frame(minWidth: 720, minHeight: 420)
         }
         .defaultSize(width: 960, height: 600)
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Open Project…") { model.openProjectPanel() }.keyboardShortcut("o")

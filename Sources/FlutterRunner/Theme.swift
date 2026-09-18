@@ -77,16 +77,26 @@ struct ProminentCapsuleStyle: ButtonStyle {
 
 /// Quiet capsule button for secondary actions (reload, restart).
 struct QuietCapsuleStyle: ButtonStyle {
+    var iconOnly = false
+    /// Flat trailing edge so a menu chevron can dock against it (split button).
+    var trailingFlat = false
     @Environment(\.isEnabled) private var isEnabled
+
+    private var shape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(topLeadingRadius: 14, bottomLeadingRadius: 14,
+                               bottomTrailingRadius: trailingFlat ? 0 : 14, topTrailingRadius: trailingFlat ? 0 : 14)
+    }
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium))
-            .padding(.horizontal, 12).padding(.vertical, 7)
-            .background(Capsule().fill(.primary.opacity(configuration.isPressed ? 0.18 : 0.10)))
-            .overlay(Capsule().strokeBorder(.primary.opacity(0.18)))
+            .font(.system(size: iconOnly ? 12 : 13, weight: iconOnly ? .semibold : .medium))
+            .padding(.horizontal, iconOnly ? 9 : 12).padding(.vertical, 7)
+            .frame(minHeight: 27)
+            .background(shape.fill(.primary.opacity(configuration.isPressed ? 0.18 : 0.10)))
+            .overlay(shape.strokeBorder(.primary.opacity(0.18)))
             .foregroundStyle(isEnabled ? .primary : .secondary)
             .opacity(isEnabled ? 1 : 0.5)
+            .contentShape(shape)
     }
 }
 

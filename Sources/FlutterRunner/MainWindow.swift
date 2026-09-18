@@ -7,22 +7,76 @@ struct MainWindow: View {
     var body: some View {
         @Bindable var model = model
         VStack(spacing: 0) {
+            topBar
             controlCard
-                .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 12)
+                .padding(.horizontal, 14).padding(.top, 4).padding(.bottom, 12)
             LogView()
                 .clipShape(UnevenRoundedRectangle(topLeadingRadius: 12, topTrailingRadius: 12))
                 .padding(.horizontal, 14)
         }
         .background(windowBackdrop)
-        .toolbar {
-            ToolbarItem(placement: .automatic) { editorMenu }
-            ToolbarItem(placement: .automatic) {
-                Toggle(isOn: $model.followLogs) { Label("Follow", systemImage: "arrow.down.to.line") }
-                    .help("Keep the newest log line in view")
+        .ignoresSafeArea(.container, edges: .top)
+    }
+
+    // MARK: Top bar (replaces the system toolbar; the empty area still drags the window)
+
+    private var topBar: some View {
+        @Bindable var model = model
+        return HStack(spacing: 8) {
+            Spacer()
+            editorSplitButton
+            Button { model.followLogs.toggle() } label: {
+                Image(systemName: "arrow.down.to.line")
+                    .foregroundStyle(model.followLogs ? Theme.accentBright : .secondary)
             }
-            ToolbarItem(placement: .automatic) {
-                Button { model.clearLogs() } label: { Label("Clear", systemImage: "trash") }.help("Clear logs (⌘K)")
+            .buttonStyle(QuietCapsuleStyle(iconOnly: true))
+            .help(model.followLogs ? "Following newest log lines. Click to stop." : "Click to follow newest log lines.")
+            Button { model.clearLogs() } label: {
+                Image(systemName: "trash").foregroundStyle(.secondary)
             }
+            .buttonStyle(QuietCapsuleStyle(iconOnly: true))
+            .help("Clear logs (⌘K)")
+        }
+        .padding(.leading, 80)   // keep clear of the traffic lights
+        .padding(.trailing, 14)
+        .frame(height: 44)
+    }
+
+    private var chevronShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: 14, topTrailingRadius: 14)
+    }
+
+    /// Two capsules that read as one split button: the name opens the editor, the arrow picks one.
+    private var editorSplitButton: some View {
+        @Bindable var model = model
+        return HStack(spacing: 1) {
+            Button { model.openInEditor() } label: {
+                Label(model.editorButtonTitle, systemImage: "chevron.left.forwardslash.chevron.right")
+            }
+            .buttonStyle(QuietCapsuleStyle(trailingFlat: true))
+            .disabled(!model.canOpenInEditor)
+            .help("Open project in \(model.editorButtonTitle) (⌘E)")
+            Menu {
+                Picker("Editor", selection: $model.editorSelection) {
+                    ForEach(model.installedEditors) { e in Text(e.name).tag(e.appPath) }
+                    if let other = model.otherEditor { Text(other.name).tag(other.appPath) }
+                    Text("Custom command").tag("custom")
+                }
+                .pickerStyle(.inline)
+                Divider()
+                Button("Other application…") { model.chooseEditorApp() }
+                SettingsLink { Text("Edit custom command…") }
+                Button("Re-scan editors") { model.refreshInstalledEditors() }
+            } label: {
+                Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 24, height: 27)
+            .background(chevronShape.fill(.primary.opacity(0.10)))
+            .overlay(chevronShape.strokeBorder(.primary.opacity(0.18)))
+            .contentShape(chevronShape)
+            .help("Choose the editor")
         }
     }
 
@@ -151,30 +205,6 @@ struct MainWindow: View {
         .fixedSize()
         .disabled(model.isRunning)
         .help("Configurations from .vscode/launch.json")
-    }
-
-    /// Split button: primary click opens the project in the chosen editor, the arrow picks the editor.
-    private var editorMenu: some View {
-        @Bindable var model = model
-        return Menu {
-            Picker("Editor", selection: $model.editorSelection) {
-                ForEach(model.installedEditors) { e in Text(e.name).tag(e.appPath) }
-                if let other = model.otherEditor { Text(other.name).tag(other.appPath) }
-                Text("Custom command").tag("custom")
-            }
-            .pickerStyle(.inline)
-            Divider()
-            Button("Other application…") { model.chooseEditorApp() }
-            SettingsLink { Text("Edit custom command…") }
-            Button("Re-scan editors") { model.refreshInstalledEditors() }
-        } label: {
-            Label(model.editorButtonTitle, systemImage: "chevron.left.forwardslash.chevron.right")
-        } primaryAction: {
-            model.openInEditor()
-        }
-        .labelStyle(.titleAndIcon)
-        .disabled(model.project == nil)
-        .help("Open project in \(model.editorButtonTitle) (⌘E). Use the arrow to pick another editor.")
     }
 
     private func deviceSymbol(_ d: FlutterDevice) -> String {
