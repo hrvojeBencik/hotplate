@@ -15,12 +15,13 @@ struct LogLine: Identifiable {
     let id: Int
     let text: String
     let kind: LogKind
+    let time: Date
 }
 
 /// The one session: selected project, device list, the running daemon and its logs.
 @MainActor @Observable
 final class SessionViewModel {
-    static let shared = SessionViewModel(store: ProjectStore())
+    static let shared: SessionViewModel = Snapshot.requestedDirectory != nil ? preview() : SessionViewModel(store: ProjectStore())
 
     let store: ProjectStore
     var state: SessionState = .idle
@@ -417,7 +418,7 @@ final class SessionViewModel {
 
     func log(_ text: String, _ kind: LogKind = .normal) {
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
-            logs.append(LogLine(id: nextLogId, text: String(line), kind: kind)); nextLogId += 1
+            logs.append(LogLine(id: nextLogId, text: String(line), kind: kind, time: Date())); nextLogId += 1
             if mirrorLogsToStderr { FileHandle.standardError.write(Data("[\(kind)] \(line)\n".utf8)) }
         }
         if logs.count > maxLogLines { logs.removeFirst(logs.count - maxLogLines) }

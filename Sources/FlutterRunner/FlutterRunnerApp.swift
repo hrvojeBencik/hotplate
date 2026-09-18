@@ -36,21 +36,22 @@ struct FlutterRunnerApp: App {
         }
 
         MenuBarExtra {
-            MenuBarMenu().environment(model)
+            MenuBarPanel().environment(model)
         } label: {
             Image(systemName: menuBarSymbol)
         }
+        .menuBarExtraStyle(.window)
 
         Settings { SettingsView().environment(model) }
     }
 
     private var menuBarSymbol: String {
         switch model.state {
-        case .idle: return "play.circle"
-        case .starting, .stopping: return "circle.dotted"
-        case .running: return "play.circle.fill"
+        case .idle: return "bolt.circle"
+        case .starting, .stopping: return "ellipsis.circle"
+        case .running: return "bolt.circle.fill"
         case .reloading, .restarting: return "arrow.triangle.2.circlepath.circle.fill"
-        case .failed: return "exclamationmark.circle.fill"
+        case .failed: return "exclamationmark.triangle.fill"
         }
     }
 }
