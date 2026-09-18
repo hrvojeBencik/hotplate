@@ -171,6 +171,30 @@ final class SessionViewModel {
 
     var canOpenInEditor: Bool { project != nil && (store.editorUseCustomCommand || effectiveEditor != nil) }
 
+    /// Picker value shared by the toolbar menu and Settings: an app path, or "custom".
+    var editorSelection: String {
+        get {
+            if store.editorUseCustomCommand { return "custom" }
+            return effectiveEditor?.appPath ?? ""
+        }
+        set {
+            if newValue == "custom" { store.editorUseCustomCommand = true }
+            else { store.editorUseCustomCommand = false; store.editorAppPath = newValue }
+        }
+    }
+
+    var editorButtonTitle: String {
+        if store.editorUseCustomCommand { return "Command" }
+        return effectiveEditor?.name ?? "Editor"
+    }
+
+    /// The configured app when it is not one of the detected known editors (chosen via "Other application…").
+    var otherEditor: InstalledEditor? {
+        guard !store.editorAppPath.isEmpty, !installedEditors.contains(where: { $0.appPath == store.editorAppPath }),
+              FileManager.default.fileExists(atPath: store.editorAppPath) else { return nil }
+        return InstalledEditor(name: EditorLauncher.name(ofApp: store.editorAppPath), appPath: store.editorAppPath)
+    }
+
     func refreshInstalledEditors() { installedEditors = EditorLauncher.detectInstalled() }
 
     func chooseEditorApp() {

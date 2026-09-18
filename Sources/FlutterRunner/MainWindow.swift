@@ -38,11 +38,7 @@ struct MainWindow: View {
             LogView()
         }
         .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button { model.openInEditor() } label: { Label("Editor", systemImage: "chevron.left.forwardslash.chevron.right") }
-                    .disabled(!model.canOpenInEditor)
-                    .help(model.effectiveEditor.map { "Open project in \($0.name) (⌘E)" } ?? "Open project in editor (⌘E)")
-            }
+            ToolbarItem(placement: .automatic) { editorMenu }
             ToolbarItem(placement: .automatic) {
                 Toggle(isOn: $model.followLogs) { Label("Follow", systemImage: "arrow.down.to.line") }
                     .help("Auto-scroll to newest log line")
@@ -87,6 +83,29 @@ struct MainWindow: View {
             .disabled(model.isLoadingDevices || model.isRunning)
             .help(model.deviceError ?? "Refresh devices (⌘⇧D)")
         }
+    }
+
+    /// Split button: primary click opens the project in the chosen editor, the arrow picks the editor.
+    private var editorMenu: some View {
+        @Bindable var model = model
+        return Menu {
+            Picker("Editor", selection: $model.editorSelection) {
+                ForEach(model.installedEditors) { e in Text(e.name).tag(e.appPath) }
+                if let other = model.otherEditor { Text(other.name).tag(other.appPath) }
+                Text("Custom command").tag("custom")
+            }
+            .pickerStyle(.inline)
+            Divider()
+            Button("Other application…") { model.chooseEditorApp() }
+            SettingsLink { Text("Edit custom command…") }
+            Button("Re-scan editors") { model.refreshInstalledEditors() }
+        } label: {
+            Label(model.editorButtonTitle, systemImage: "chevron.left.forwardslash.chevron.right")
+        } primaryAction: {
+            model.openInEditor()
+        }
+        .disabled(model.project == nil)
+        .help("Open project in \(model.editorButtonTitle) (⌘E). Use the arrow to pick another editor.")
     }
 
     private var launchConfigPicker: some View {

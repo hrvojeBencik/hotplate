@@ -17,22 +17,14 @@ struct SettingsView: View {
                 }
             }
             Section("Editor") {
-                Picker("Open project with", selection: Binding(
-                    get: { store.editorUseCustomCommand ? "custom" : store.editorAppPath },
-                    set: { value in
-                        if value == "custom" { store.editorUseCustomCommand = true }
-                        else if value == "choose" { model.chooseEditorApp() }
-                        else { store.editorUseCustomCommand = false; store.editorAppPath = value }
-                    })) {
-                    Text("Automatic (\(model.installedEditors.first?.name ?? "none found"))").tag("")
+                @Bindable var model = model
+                Picker("Open project with", selection: $model.editorSelection) {
+                    if model.installedEditors.isEmpty, model.otherEditor == nil { Text("No editor found").tag("") }
                     ForEach(model.installedEditors) { e in Text(e.name).tag(e.appPath) }
-                    if !store.editorAppPath.isEmpty, !model.installedEditors.contains(where: { $0.appPath == store.editorAppPath }) {
-                        Text(EditorLauncher.name(ofApp: store.editorAppPath)).tag(store.editorAppPath)
-                    }
-                    Divider()
-                    Text("Other application…").tag("choose")
+                    if let other = model.otherEditor { Text(other.name).tag(other.appPath) }
                     Text("Custom command").tag("custom")
                 }
+                Button("Other application…") { model.chooseEditorApp() }
                 if store.editorUseCustomCommand {
                     TextField("Command, e.g. zed {path}  or  open -a kitty --args nvim {path}", text: $store.editorCustomCommand)
                     Text("Runs in your login shell; {path} is replaced with the project folder.")
