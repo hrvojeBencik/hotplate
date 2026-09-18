@@ -22,33 +22,34 @@ struct MenuBarPanel: View {
 
             HStack(spacing: 8) {
                 if model.canStop {
-                    tile("Stop", "stop.fill", tint: Theme.error) { Task { await model.stop() } }
+                    tile("Stop", "stop.fill", tint: Theme.error, help: "Stop the app  ⌘.") { Task { await model.stop() } }
                 } else {
-                    tile("Run", "play.fill", tint: Theme.accent, enabled: model.canRun) { Task { await model.run() } }
+                    tile("Run", "play.fill", tint: Theme.accent, enabled: model.canRun, help: "Run  ⌘⏎") { Task { await model.run() } }
                 }
-                tile("Reload", "bolt.fill", enabled: model.canReload) { Task { await model.hotReload() } }
-                tile("Restart", "arrow.counterclockwise", enabled: model.canReload) { Task { await model.hotRestart() } }
+                tile("Reload", "bolt.fill", enabled: model.canReload, help: "Hot reload  ⌃⌥R from any app") { Task { await model.hotReload() } }
+                tile("Restart", "arrow.counterclockwise", enabled: model.canReload, help: "Hot restart  ⌃⌥⇧R from any app") { Task { await model.hotRestart() } }
             }
 
             Toggle(isOn: $model.autoReload) {
                 Label("Reload on save", systemImage: "wand.and.stars").font(.system(size: 12))
             }
             .toggleStyle(.switch).controlSize(.small).tint(Theme.accent)
+            .help("Hot reload whenever a .dart file in lib/ is saved  ⌘⇧A")
 
             Divider()
 
             VStack(alignment: .leading, spacing: 2) {
-                row("Open in \(model.editorButtonTitle)", "chevron.left.forwardslash.chevron.right", enabled: model.canOpenInEditor) { model.openInEditor() }
-                row("Show logs", "text.alignleft") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
-                SettingsLink { rowLabel("Settings…", "gearshape") }.buttonStyle(RowStyle())
-                row("Quit FlutterRunner", "power") { NSApp.terminate(nil) }
+                row("Open in \(model.editorButtonTitle)", "chevron.left.forwardslash.chevron.right", enabled: model.canOpenInEditor, help: "Open the project in your editor  ⌘E") { model.openInEditor() }
+                row("Show logs", "text.alignleft", help: "Bring the main window to front") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
+                SettingsLink { rowLabel("Settings…", "gearshape") }.buttonStyle(RowStyle()).help("Settings  ⌘,")
+                row("Quit FlutterRunner", "power", help: "Stops the app and quits  ⌘Q") { NSApp.terminate(nil) }
             }
         }
         .padding(14)
         .frame(width: 300)
     }
 
-    private func tile(_ title: String, _ symbol: String, tint: Color? = nil, enabled: Bool = true, action: @escaping () -> Void) -> some View {
+    private func tile(_ title: String, _ symbol: String, tint: Color? = nil, enabled: Bool = true, help: String = "", action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: symbol).font(.system(size: 16, weight: .semibold))
@@ -65,10 +66,11 @@ struct MenuBarPanel: View {
         .buttonStyle(.plain)
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.45)
+        .help(help)
     }
 
-    private func row(_ title: String, _ symbol: String, enabled: Bool = true, action: @escaping () -> Void) -> some View {
-        Button(action: action) { rowLabel(title, symbol) }.buttonStyle(RowStyle()).disabled(!enabled)
+    private func row(_ title: String, _ symbol: String, enabled: Bool = true, help: String = "", action: @escaping () -> Void) -> some View {
+        Button(action: action) { rowLabel(title, symbol) }.buttonStyle(RowStyle()).disabled(!enabled).help(help)
     }
 
     private func rowLabel(_ title: String, _ symbol: String) -> some View {

@@ -30,12 +30,12 @@ struct MainWindow: View {
                     .foregroundStyle(model.followLogs ? Theme.accentBright : .secondary)
             }
             .buttonStyle(QuietCapsuleStyle(iconOnly: true))
-            .help(model.followLogs ? "Following newest log lines. Click to stop." : "Click to follow newest log lines.")
+            .help(model.followLogs ? "Following newest log lines. Click to stop.  ⌘⇧F" : "Follow newest log lines.  ⌘⇧F")
             Button { model.clearLogs() } label: {
                 Image(systemName: "trash").foregroundStyle(.secondary)
             }
             .buttonStyle(QuietCapsuleStyle(iconOnly: true))
-            .help("Clear logs (⌘K)")
+            .help("Clear logs  ⌘K")
         }
         .padding(.leading, 80)   // keep clear of the traffic lights
         .padding(.trailing, 14)
@@ -55,7 +55,7 @@ struct MainWindow: View {
             }
             .buttonStyle(QuietCapsuleStyle(trailingFlat: true))
             .disabled(!model.canOpenInEditor)
-            .help("Open project in \(model.editorButtonTitle) (⌘E)")
+            .help("Open project in \(model.editorButtonTitle)  ⌘E")
             Menu {
                 Picker("Editor", selection: $model.editorSelection) {
                     ForEach(model.installedEditors) { e in Text(e.name).tag(e.appPath) }
@@ -120,16 +120,20 @@ struct MainWindow: View {
                 if model.canStop {
                     Button { Task { await model.stop() } } label: { Label("Stop", systemImage: "stop.fill") }
                         .buttonStyle(ProminentCapsuleStyle(tint: Theme.error))
+                        .help("Stop the app  ⌘.")
                 } else {
                     Button { Task { await model.run() } } label: { Label("Run", systemImage: "play.fill") }
                         .buttonStyle(ProminentCapsuleStyle())
                         .disabled(!model.canRun)
                         .opacity(model.canRun ? 1 : 0.45)
+                        .help(model.canRun ? "Run on the selected device  ⌘⏎" : "Pick a project and a device to run")
                 }
                 Button { Task { await model.hotReload() } } label: { Label("Hot reload", systemImage: "bolt.fill") }
                     .buttonStyle(QuietCapsuleStyle()).disabled(!model.canReload)
+                    .help("Hot reload  ⌘R  (⌃⌥R from any app)")
                 Button { Task { await model.hotRestart() } } label: { Label("Hot restart", systemImage: "arrow.counterclockwise") }
                     .buttonStyle(QuietCapsuleStyle()).disabled(!model.canReload)
+                    .help("Hot restart  ⌘⇧R  (⌃⌥⇧R from any app)")
                 Spacer()
                 Toggle(isOn: $model.autoReload) {
                     Label("Reload on save", systemImage: "wand.and.stars")
@@ -139,6 +143,7 @@ struct MainWindow: View {
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .tint(Theme.accent)
+                .help("Hot reload whenever a .dart file in lib/ is saved  ⌘⇧A")
             }
         }
         .padding(14)
@@ -169,7 +174,7 @@ struct MainWindow: View {
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help(model.project?.path ?? "Pick a Flutter project folder")
+        .help((model.project?.path ?? "Pick a Flutter project folder") + "  ⌘O opens a folder")
     }
 
     private var devicePicker: some View {
@@ -184,13 +189,14 @@ struct MainWindow: View {
             .labelsHidden()
             .disabled(model.isRunning || model.devices.isEmpty)
             .fixedSize()
+            .help("Target device")
             Button { Task { await model.refreshDevices() } } label: {
                 if model.isLoadingDevices { ProgressView().controlSize(.mini) }
                 else { Image(systemName: "arrow.clockwise").font(.system(size: 11, weight: .semibold)) }
             }
             .buttonStyle(.borderless)
             .disabled(model.isLoadingDevices || model.isRunning)
-            .help(model.deviceError ?? "Refresh devices (⌘⇧D)")
+            .help(model.deviceError ?? "Refresh devices  ⌘⇧D")
         }
     }
 
@@ -204,7 +210,7 @@ struct MainWindow: View {
         .labelsHidden()
         .fixedSize()
         .disabled(model.isRunning)
-        .help("Configurations from .vscode/launch.json")
+        .help("Launch configuration from .vscode/launch.json; the args field below follows it")
     }
 
     private func deviceSymbol(_ d: FlutterDevice) -> String {
