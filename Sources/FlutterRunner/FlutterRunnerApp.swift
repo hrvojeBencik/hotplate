@@ -14,6 +14,7 @@ struct FlutterRunnerApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Open Project…") { model.openProjectPanel() }.keyboardShortcut("o")
+                Button("Open in Editor") { model.openInEditor() }.keyboardShortcut("e").disabled(!model.canOpenInEditor)
             }
             CommandMenu("Flutter") {
                 Button("Run") { Task { await model.run() } }

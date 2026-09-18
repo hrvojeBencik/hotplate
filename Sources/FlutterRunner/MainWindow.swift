@@ -39,6 +39,11 @@ struct MainWindow: View {
         }
         .toolbar {
             ToolbarItem(placement: .automatic) {
+                Button { model.openInEditor() } label: { Label("Editor", systemImage: "chevron.left.forwardslash.chevron.right") }
+                    .disabled(!model.canOpenInEditor)
+                    .help(model.effectiveEditor.map { "Open project in \($0.name) (⌘E)" } ?? "Open project in editor (⌘E)")
+            }
+            ToolbarItem(placement: .automatic) {
                 Toggle(isOn: $model.followLogs) { Label("Follow", systemImage: "arrow.down.to.line") }
                     .help("Auto-scroll to newest log line")
             }

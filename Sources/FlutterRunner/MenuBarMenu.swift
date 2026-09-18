@@ -19,6 +19,7 @@ struct MenuBarMenu: View {
         Button("Hot Restart") { Task { await model.hotRestart() } }.disabled(!model.canReload)
         Toggle("Auto Reload on Save", isOn: $model.autoReload)
         Divider()
+        Button("Open in Editor") { model.openInEditor() }.disabled(!model.canOpenInEditor)
         Button("Show Logs") {
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)

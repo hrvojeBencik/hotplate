@@ -1,4 +1,5 @@
 import AppKit
+import UniformTypeIdentifiers
 import Foundation
 import Observation
 import FlutterRunnerCore
@@ -154,6 +155,60 @@ final class SessionViewModel {
         p.launchConfigName = selectedLaunchConfigName
         project = p
         store.update(p)
+    }
+
+    // MARK: Editor
+
+    var installedEditors: [InstalledEditor] = EditorLauncher.detectInstalled()
+
+    /// The editor that "Open in Editor" will use: the configured app, or the first installed known editor.
+    var effectiveEditor: InstalledEditor? {
+        if !store.editorAppPath.isEmpty, FileManager.default.fileExists(atPath: store.editorAppPath) {
+            return InstalledEditor(name: EditorLauncher.name(ofApp: store.editorAppPath), appPath: store.editorAppPath)
+        }
+        return installedEditors.first
+    }
+
+    var canOpenInEditor: Bool { project != nil && (store.editorUseCustomCommand || effectiveEditor != nil) }
+
+    func refreshInstalledEditors() { installedEditors = EditorLauncher.detectInstalled() }
+
+    func chooseEditorApp() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = false; panel.canChooseFiles = true; panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.applicationBundle]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.message = "Choose the editor application"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        store.editorAppPath = url.path
+        store.editorUseCustomCommand = false
+    }
+
+    func openInEditor() {
+        guard let project else { return }
+        if store.editorUseCustomCommand {
+            let env = flutterPath.map { FlutterLocator.environment(flutterPath: $0) } ?? ProcessInfo.processInfo.environment
+            do {
+                try EditorLauncher.runCustom(template: store.editorCustomCommand, projectPath: project.path, environment: env)
+                log("Opened in editor: \(EditorLauncher.expand(template: store.editorCustomCommand, projectPath: project.path))", .info)
+            } catch {
+                log("Editor command failed: \(error.localizedDescription)", .error)
+            }
+            return
+        }
+        guard let editor = effectiveEditor else {
+            log("No editor found. Pick one in Settings (⌘,) → Editor.", .error)
+            NSSound.beep()
+            return
+        }
+        Task {
+            do {
+                try await EditorLauncher.open(projectPath: project.path, withApp: editor.appPath)
+                log("Opened \(project.name) in \(editor.name).", .info)
+            } catch {
+                log("Could not open \(editor.name): \(error.localizedDescription)", .error)
+            }
+        }
     }
 
     // MARK: Launch configurations (.vscode/launch.json)

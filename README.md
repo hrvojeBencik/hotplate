@@ -46,6 +46,10 @@ Produces `dist/FlutterRunner.app`, `dist/FlutterRunner.zip` and `dist/README.txt
   tolerated). Pick a configuration in the toolbar and its `program`, `args`,
   `toolArgs`, `flutterMode` and `deviceId` become the run arguments. Editing the
   args field switches back to "Custom". The file is re-read before every run.
+- "Open in Editor" (⌘E) opens the project folder in your editor. Settings → Editor
+  lists detected apps (Zed, VS Code, Cursor, Sublime, Android Studio, Xcode, …),
+  lets you pick any other .app, or run a custom shell command with `{path}`
+  (for terminal editors, e.g. `open -a kitty --args nvim {path}`).
 - Recent projects, the last device and extra args per project are stored in
   UserDefaults.
 
