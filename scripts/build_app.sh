@@ -18,6 +18,11 @@ APP="dist/Hotplate.app"
 ZIP="dist/Hotplate-$VERSION.zip"
 DMG="dist/Hotplate-$VERSION.dmg"
 
+if [ "${SKIP_BUILD:-0}" = "1" ] && [ -x "$APP/Contents/MacOS/Hotplate" ]; then
+  echo "▸ SKIP_BUILD=1: reusing $APP"
+  BIN="$APP/Contents/MacOS/Hotplate"
+  cp "$BIN" /tmp/hotplate-reuse.bin && rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" && mv /tmp/hotplate-reuse.bin "$BIN"
+else
 echo "▸ Building release binary (v$VERSION)…"
 # Ask SwiftPM where the products land: the directory differs between toolchains.
 if swift build -c release --arch arm64 --arch x86_64 >/tmp/hotplate-build.log 2>&1; then
@@ -31,9 +36,9 @@ if [ ! -f "$BIN" ] || [ -n "$(find Sources -newer "$BIN" -name '*.swift' | head 
   echo "error: $BIN is missing or older than the sources" >&2; exit 1
 fi
 echo "  binary: $BIN"
-
 rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Hotplate"
+fi
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
 echo "▸ Generating icon…"
@@ -78,7 +83,7 @@ if [ "$SIGNED" = "developer-id" ]; then codesign --force --timestamp --sign "$ID
 # --- Notarization ----------------------------------------------------------------------------
 if [ "$SIGNED" = "developer-id" ] && [ -n "${NOTARY_PROFILE:-}" ]; then
   echo "▸ Notarizing (this takes a few minutes)…"
-  xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+  xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait --timeout 25m
   xcrun stapler staple "$DMG"
   xcrun stapler staple "$APP"
   ditto -c -k --keepParent "$APP" "$ZIP"   # re-zip the stapled app
