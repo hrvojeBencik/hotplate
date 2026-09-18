@@ -26,7 +26,15 @@ final class SessionViewModel {
     var project: Project?
     var devices: [FlutterDevice] = []
     var selectedDeviceId: String? { didSet { persistProjectSettings() } }
-    var extraArgs: String = "" { didSet { persistProjectSettings() } }
+    var extraArgs: String = "" {
+        didSet {
+            // A manual edit of the args field means "custom", unless we are applying a config ourselves.
+            if !applyingLaunchConfig, !suppressPersist, selectedLaunchConfigName != nil { selectedLaunchConfigName = nil }
+            persistProjectSettings()
+        }
+    }
+    var launchConfigs: [LaunchConfig] = []
+    var selectedLaunchConfigName: String? { didSet { persistProjectSettings() } }
     var autoReload: Bool = true { didSet { persistProjectSettings() } }
     var logs: [LogLine] = []
     var isLoadingDevices = false
@@ -41,6 +49,7 @@ final class SessionViewModel {
     private var pendingReload = false
     private var nextLogId = 0
     private var suppressPersist = false
+    private var applyingLaunchConfig = false
     private let maxLogLines = 5000
 
     init(store: ProjectStore) {
@@ -97,15 +106,28 @@ final class SessionViewModel {
             var p = try Project.load(path: path)
             if let saved = store.recents.first(where: { $0.path == path }) {
                 p.lastDeviceId = saved.lastDeviceId; p.extraArgs = saved.extraArgs; p.autoReload = saved.autoReload
+                p.launchConfigName = saved.launchConfigName
             }
+            launchConfigs = LaunchConfigReader.load(projectPath: path)
             suppressPersist = true
             project = p
             extraArgs = p.extraArgs
             autoReload = p.autoReload
             selectedDeviceId = p.lastDeviceId
+            selectedLaunchConfigName = p.launchConfigName
             suppressPersist = false
             store.touch(p)
             log("Project: \(p.name) (\(p.path))", .info)
+            if !launchConfigs.isEmpty {
+                log("launch.json: \(launchConfigs.map(\.name).joined(separator: ", "))", .info)
+            }
+            if let name = p.launchConfigName, launchConfigs.contains(where: { $0.name == name }) {
+                selectLaunchConfig(name: name)
+            } else if p.launchConfigName == nil, p.extraArgs.isEmpty, let first = launchConfigs.first {
+                selectLaunchConfig(name: first.name)
+            } else {
+                selectedLaunchConfigName = nil
+            }
             Task { await refreshDevices() }
         } catch {
             log(error.localizedDescription, .error)
@@ -121,8 +143,41 @@ final class SessionViewModel {
     private func persistProjectSettings() {
         guard !suppressPersist, var p = project else { return }
         p.lastDeviceId = selectedDeviceId; p.extraArgs = extraArgs; p.autoReload = autoReload
+        p.launchConfigName = selectedLaunchConfigName
         project = p
         store.update(p)
+    }
+
+    // MARK: Launch configurations (.vscode/launch.json)
+
+    /// Applies a launch configuration to the args field (and device, if the config names one).
+    func selectLaunchConfig(name: String?) {
+        guard let name, let cfg = launchConfigs.first(where: { $0.name == name }) else {
+            selectedLaunchConfigName = nil
+            return
+        }
+        applyingLaunchConfig = true
+        extraArgs = ArgumentSplitter.join(cfg.flutterRunArguments)
+        applyingLaunchConfig = false
+        selectedLaunchConfigName = name
+        if let dev = cfg.deviceId, devices.contains(where: { $0.id == dev }) { selectedDeviceId = dev }
+        log("Launch config \"\(name)\" → \(extraArgs.isEmpty ? "(no extra args)" : extraArgs)", .info)
+        if let mode = cfg.flutterMode?.lowercased(), mode != "debug" {
+            log("Note: \(mode) mode does not support hot reload.", .warning)
+        }
+    }
+
+    /// Re-reads launch.json so edits made in the editor are picked up before a run.
+    func reloadLaunchConfigs() {
+        guard let project else { return }
+        launchConfigs = LaunchConfigReader.load(projectPath: project.path)
+        guard let name = selectedLaunchConfigName else { return }
+        if launchConfigs.contains(where: { $0.name == name }) {
+            selectLaunchConfig(name: name)
+        } else {
+            log("Launch config \"\(name)\" no longer exists in launch.json; keeping current args.", .warning)
+            selectedLaunchConfigName = nil
+        }
     }
 
     // MARK: Devices
@@ -135,6 +190,10 @@ final class SessionViewModel {
             let service = DeviceService(flutterPath: flutterPath, environment: FlutterLocator.environment(flutterPath: flutterPath))
             let list = try await service.listDevices(projectPath: project?.path)
             devices = list
+            if let name = selectedLaunchConfigName, let dev = launchConfigs.first(where: { $0.name == name })?.deviceId,
+               list.contains(where: { $0.id == dev }) {
+                selectedDeviceId = dev
+            }
             if selectedDeviceId == nil || !list.contains(where: { $0.id == selectedDeviceId }) {
                 selectedDeviceId = list.first?.id
             }
@@ -149,8 +208,10 @@ final class SessionViewModel {
     // MARK: Run / stop
 
     func run() async {
-        guard canRun, let project, let deviceId = selectedDeviceId, let flutterPath else { return }
+        guard canRun, project != nil, selectedDeviceId != nil, flutterPath != nil else { return }
         clearLogs()
+        reloadLaunchConfigs()
+        guard let project, let deviceId = selectedDeviceId, let flutterPath else { return }
         state = .starting
         pendingReload = false
         let args = ArgumentSplitter.split(extraArgs)

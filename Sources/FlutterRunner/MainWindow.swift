@@ -11,6 +11,7 @@ struct MainWindow: View {
                 HStack(spacing: 12) {
                     projectPicker
                     devicePicker
+                    if !model.launchConfigs.isEmpty { launchConfigPicker }
                     TextField("Extra args, e.g. --flavor dev -t lib/main_dev.dart", text: $model.extraArgs)
                         .textFieldStyle(.roundedBorder)
                         .disabled(model.isRunning)
@@ -81,6 +82,19 @@ struct MainWindow: View {
             .disabled(model.isLoadingDevices || model.isRunning)
             .help(model.deviceError ?? "Refresh devices (⌘⇧D)")
         }
+    }
+
+    private var launchConfigPicker: some View {
+        Picker("Launch config", selection: Binding(get: { model.selectedLaunchConfigName ?? "" },
+                                                   set: { model.selectLaunchConfig(name: $0.isEmpty ? nil : $0) })) {
+            ForEach(model.launchConfigs) { c in Text(c.name).tag(c.name) }
+            Divider()
+            Text("Custom").tag("")
+        }
+        .labelsHidden()
+        .disabled(model.isRunning)
+        .frame(maxWidth: 220)
+        .help("Configurations from .vscode/launch.json")
     }
 
     private var statusIndicator: some View {

@@ -42,9 +42,13 @@ public struct Project: Identifiable, Hashable, Codable, Sendable {
     public var extraArgs: String
     public var autoReload: Bool
     public var lastOpened: Date
+    /// Name of the selected `.vscode/launch.json` configuration; nil means custom args.
+    public var launchConfigName: String?
 
-    public init(path: String, name: String, lastDeviceId: String? = nil, extraArgs: String = "", autoReload: Bool = true, lastOpened: Date = Date()) {
-        self.path = path; self.name = name; self.lastDeviceId = lastDeviceId; self.extraArgs = extraArgs; self.autoReload = autoReload; self.lastOpened = lastOpened
+    public init(path: String, name: String, lastDeviceId: String? = nil, extraArgs: String = "", autoReload: Bool = true,
+                lastOpened: Date = Date(), launchConfigName: String? = nil) {
+        self.path = path; self.name = name; self.lastDeviceId = lastDeviceId; self.extraArgs = extraArgs
+        self.autoReload = autoReload; self.lastOpened = lastOpened; self.launchConfigName = launchConfigName
     }
 
     public static func load(path: String) throws -> Project {

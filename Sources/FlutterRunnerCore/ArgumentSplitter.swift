@@ -25,3 +25,14 @@ public enum ArgumentSplitter {
         return result
     }
 }
+
+public extension ArgumentSplitter {
+    /// Inverse of `split`: quotes tokens that contain whitespace or quotes.
+    static func join(_ args: [String]) -> String {
+        args.map { token in
+            guard token.contains(where: { $0.isWhitespace || $0 == "\"" || $0 == "'" }) || token.isEmpty else { return token }
+            let escaped = token.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            return "\"\(escaped)\""
+        }.joined(separator: " ")
+    }
+}
