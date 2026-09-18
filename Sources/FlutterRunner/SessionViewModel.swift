@@ -88,8 +88,14 @@ final class SessionViewModel {
 
     func relocateFlutter() {
         flutterPath = FlutterLocator.locate(manualPath: store.manualFlutterPath)
-        if let flutterPath { log("Using flutter at \(flutterPath)", .info) }
-        else { log("flutter executable not found. Set the path in Settings (⌘,).", .error) }
+        if let flutterPath {
+            log("Using flutter at \(flutterPath)", .info)
+            let path = FlutterLocator.environment(flutterPath: flutterPath)["PATH"] ?? ""
+            if let pod = FlutterLocator.find(tool: "pod", inPath: path) { log("CocoaPods: \(pod)", .info) }
+            else { log("CocoaPods (pod) not found on PATH; iOS/macOS builds with plugins will fail.", .warning) }
+        } else {
+            log("flutter executable not found. Set the path in Settings (⌘,).", .error)
+        }
     }
 
     // MARK: Projects

@@ -4,13 +4,18 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 echo "▸ Building release binary…"
+# Ask SwiftPM where the products land: the directory differs between toolchains.
 if swift build -c release --arch arm64 --arch x86_64 >/tmp/flutterrunner-build.log 2>&1; then
-  BIN=".build/apple/Products/Release/FlutterRunner"
+  BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/FlutterRunner"
 else
   echo "  universal build failed (see /tmp/flutterrunner-build.log), falling back to native arch"
   swift build -c release
-  BIN=".build/release/FlutterRunner"
+  BIN="$(swift build -c release --show-bin-path)/FlutterRunner"
 fi
+if [ ! -f "$BIN" ] || [ -n "$(find Sources -newer "$BIN" -name '*.swift' | head -1)" ]; then
+  echo "error: $BIN is missing or older than the sources" >&2; exit 1
+fi
+echo "  binary: $BIN"
 
 APP="dist/FlutterRunner.app"
 rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
