@@ -83,10 +83,12 @@ public extension EditorLauncher {
     static func openFileCommand(appPath: String, bundleIdentifier: String, file: String, line: Int?, column: Int?) -> [String]? {
         let loc = [file, line.map(String.init), column.map(String.init)].compactMap { $0 }.joined(separator: ":")
         switch bundleIdentifier {
-        case "com.microsoft.VSCode", "com.todesktop.230313mzl4w4u92", "com.exafunction.windsurf":
-            let cli = (appPath as NSString).appendingPathComponent("Contents/Resources/app/bin/code")
-            let alt = (appPath as NSString).appendingPathComponent("Contents/Resources/app/bin/\(bundleIdentifier == "com.exafunction.windsurf" ? "windsurf" : "cursor")")
-            return [FileManager.default.isExecutableFile(atPath: cli) ? cli : alt, "-g", loc]
+        case "com.microsoft.VSCode":
+            return [(appPath as NSString).appendingPathComponent("Contents/Resources/app/bin/code"), "-g", loc]
+        case "com.todesktop.230313mzl4w4u92":
+            return [(appPath as NSString).appendingPathComponent("Contents/Resources/app/bin/cursor"), "-g", loc]
+        case "com.exafunction.windsurf":
+            return [(appPath as NSString).appendingPathComponent("Contents/Resources/app/bin/windsurf"), "-g", loc]
         case "dev.zed.Zed":
             return [(appPath as NSString).appendingPathComponent("Contents/MacOS/cli"), loc]
         case "com.sublimetext.4":
