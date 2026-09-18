@@ -43,7 +43,8 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 rm -rf "$ICONSET"
 
 # --- Signing -------------------------------------------------------------------------------
-IDENTITY="${SIGNING_IDENTITY:-$(security find-identity -v -p codesigning 2>/dev/null | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"')}"
+FOUND_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | grep -o '"Developer ID Application: [^"]*"' | head -1 | tr -d '"' || true)"
+IDENTITY="${SIGNING_IDENTITY:-$FOUND_IDENTITY}"
 if [ -n "$IDENTITY" ]; then
   echo "▸ Signing with Developer ID: $IDENTITY"
   codesign --force --options runtime --timestamp --entitlements Resources/FlutterRunner.entitlements \
