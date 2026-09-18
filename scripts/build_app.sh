@@ -47,8 +47,13 @@ FOUND_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | grep -o
 IDENTITY="${SIGNING_IDENTITY:-$FOUND_IDENTITY}"
 if [ -n "$IDENTITY" ]; then
   echo "▸ Signing with Developer ID: $IDENTITY"
-  codesign --force --options runtime --timestamp --entitlements Resources/Hotplate.entitlements \
-           --sign "$IDENTITY" "$APP"
+  # Apple's timestamp server is occasionally unreachable; a signature without a timestamp fails notarization, so retry.
+  for attempt in 1 2 3 4 5; do
+    codesign --force --options runtime --timestamp --entitlements Resources/Hotplate.entitlements \
+             --sign "$IDENTITY" "$APP"
+    if codesign --verify --deep --strict "$APP" 2>/dev/null && codesign -dvv "$APP" 2>&1 | grep -q "^Timestamp="; then break; fi
+    echo "  signing attempt $attempt produced no timestamp, retrying in 5s…"; sleep 5
+  done
   SIGNED="developer-id"
 else
   echo "▸ Signing ad-hoc (no Developer ID certificate found)"
@@ -68,6 +73,7 @@ cp -R "$APP" "$STAGING/"
 ln -s /Applications "$STAGING/Applications"
 hdiutil create -quiet -volname "Hotplate" -srcfolder "$STAGING" -ov -format UDZO "$DMG"
 rm -rf "$STAGING"
+if [ "$SIGNED" = "developer-id" ]; then codesign --force --timestamp --sign "$IDENTITY" "$DMG"; fi
 
 # --- Notarization ----------------------------------------------------------------------------
 if [ "$SIGNED" = "developer-id" ] && [ -n "${NOTARY_PROFILE:-}" ]; then

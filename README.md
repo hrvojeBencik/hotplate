@@ -1,9 +1,20 @@
 # Hotplate
 
-A tiny native macOS app that runs a Flutter project with `flutter run --machine`,
-exposes Run / Stop / Hot Reload / Hot Restart, hot-reloads automatically when a
-`.dart` file under `lib/` is saved, shows the logs, and sits in the menu bar.
-Use any editor you like; this replaces only the "run + hot reload" part of VSCode.
+Keeps your Flutter app hot. A small native macOS app that runs a Flutter project,
+hot reloads it whenever you save a `.dart` file, and shows the logs, so you can use
+any editor (Zed, Neovim, Sublime, …) without giving up hot reload. It replaces only
+the "run + hot reload" part of the VS Code Flutter extension.
+
+![Hotplate main window](docs/images/main-dark.png)
+
+<img src="docs/images/menubar-dark.png" width="300" alt="Menu bar panel">
+
+## Install
+
+Download `Hotplate-<version>.dmg` from the [latest release](../../releases/latest), drag Hotplate
+to Applications and open it. The app is signed with a Developer ID and notarized by Apple.
+
+Or with Homebrew: `brew install hrvojebencik/tap/hotplate`
 
 ## Requirements
 
@@ -78,3 +89,13 @@ Tests/HotplateCoreTests
 scripts/build_app.sh        # .app + zip
 docs/superpowers/           # design spec and implementation plan
 ```
+
+## Privacy
+
+Hotplate makes no network requests of its own and collects nothing. Everything runs locally:
+it launches `flutter`, watches your project folder, and stores its settings in `~/Library/Preferences`.
+
+## Trademarks
+
+Flutter and the related logo are trademarks of Google LLC. Hotplate is not endorsed by or
+affiliated with Google LLC.
