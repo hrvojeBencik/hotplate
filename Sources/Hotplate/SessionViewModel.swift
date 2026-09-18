@@ -2,7 +2,7 @@ import AppKit
 import UniformTypeIdentifiers
 import Foundation
 import Observation
-import FlutterRunnerCore
+import HotplateCore
 
 enum SessionState: Equatable {
     case idle, starting, running, reloading, restarting, stopping
@@ -446,7 +446,7 @@ final class SessionViewModel {
 
     // MARK: Logs
 
-    private let mirrorLogsToStderr = ProcessInfo.processInfo.environment["FLUTTER_RUNNER_LOG_STDERR"] == "1"
+    private let mirrorLogsToStderr = ProcessInfo.processInfo.environment["HOTPLATE_LOG_STDERR"] == "1"
 
     func log(_ text: String, _ kind: LogKind = .normal) {
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {

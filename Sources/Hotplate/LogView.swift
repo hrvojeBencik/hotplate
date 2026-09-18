@@ -1,5 +1,5 @@
 import SwiftUI
-import FlutterRunnerCore
+import HotplateCore
 
 struct LogView: View {
     @Environment(SessionViewModel.self) private var model
@@ -25,7 +25,7 @@ struct LogView: View {
         }
         .environment(\.colorScheme, .dark)
         .environment(\.openURL, OpenURLAction { url in
-            guard url.scheme == "flutterrunner", url.host == "open",
+            guard url.scheme == "hotplate", url.host == "open",
                   let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
                   let location = items.first(where: { $0.name == "loc" })?.value else { return .systemAction }
             let line = items.first(where: { $0.name == "line" })?.value.flatMap(Int.init)
@@ -58,7 +58,7 @@ private struct LogRow: View {
         var text = AttributedString(line.text)
         for link in LogLinkParser.links(in: line.text) {
             guard let range = Range(link.range, in: text) else { continue }
-            var comps = URLComponents(); comps.scheme = "flutterrunner"; comps.host = "open"
+            var comps = URLComponents(); comps.scheme = "hotplate"; comps.host = "open"
             comps.queryItems = [URLQueryItem(name: "loc", value: link.location)]
                 + (link.line.map { [URLQueryItem(name: "line", value: String($0))] } ?? [])
                 + (link.column.map { [URLQueryItem(name: "col", value: String($0))] } ?? [])

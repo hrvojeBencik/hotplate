@@ -3,12 +3,12 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key><string>en</string>
-    <key>CFBundleExecutable</key><string>FlutterRunner</string>
+    <key>CFBundleExecutable</key><string>Hotplate</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
-    <key>CFBundleIdentifier</key><string>com.hrvojebencik.FlutterRunner</string>
+    <key>CFBundleIdentifier</key><string>com.hrvojebencik.hotplate</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-    <key>CFBundleName</key><string>FlutterRunner</string>
-    <key>CFBundleDisplayName</key><string>FlutterRunner</string>
+    <key>CFBundleName</key><string>Hotplate</string>
+    <key>CFBundleDisplayName</key><string>Hotplate</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>1.0.0</string>
     <key>CFBundleVersion</key><string>1</string>

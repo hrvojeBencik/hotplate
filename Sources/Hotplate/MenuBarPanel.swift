@@ -42,7 +42,7 @@ struct MenuBarPanel: View {
                 row("Open in \(model.editorButtonTitle)", "chevron.left.forwardslash.chevron.right", enabled: model.canOpenInEditor, help: "Open the project in your editor  ⌘E") { model.openInEditor() }
                 row("Show logs", "text.alignleft", help: "Bring the main window to front") { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
                 SettingsLink { rowLabel("Settings…", "gearshape") }.buttonStyle(RowStyle()).help("Settings  ⌘,")
-                row("Quit FlutterRunner", "power", help: "Stops the app and quits  ⌘Q") { NSApp.terminate(nil) }
+                row("Quit Hotplate", "power", help: "Stops the app and quits  ⌘Q") { NSApp.terminate(nil) }
             }
         }
         .padding(14)

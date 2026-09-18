@@ -7,7 +7,7 @@ public final class FileWatcher: @unchecked Sendable {
     private let latency: TimeInterval
     private let onChange: ([String]) -> Void
     private var stream: FSEventStreamRef?
-    private let queue = DispatchQueue(label: "FlutterRunner.FileWatcher")
+    private let queue = DispatchQueue(label: "Hotplate.FileWatcher")
 
     public init(path: String, latency: TimeInterval = 0.1, onChange: @escaping ([String]) -> Void) {
         self.path = path; self.latency = latency; self.onChange = onChange

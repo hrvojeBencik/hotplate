@@ -1,13 +1,13 @@
 import XCTest
-@testable import FlutterRunnerCore
+@testable import HotplateCore
 
 /// Runs a real `flutter run --machine` against a real project. Opt-in:
-///   FLUTTER_RUNNER_E2E_PROJECT=/path/to/project FLUTTER_RUNNER_E2E_DEVICE=chrome swift test --filter RealFlutterE2ETests
+///   HOTPLATE_E2E_PROJECT=/path/to/project HOTPLATE_E2E_DEVICE=chrome swift test --filter RealFlutterE2ETests
 final class RealFlutterE2ETests: XCTestCase {
     func testRealRunReloadStop() async throws {
         let env = ProcessInfo.processInfo.environment
-        guard let project = env["FLUTTER_RUNNER_E2E_PROJECT"], let device = env["FLUTTER_RUNNER_E2E_DEVICE"] else {
-            throw XCTSkip("set FLUTTER_RUNNER_E2E_PROJECT and FLUTTER_RUNNER_E2E_DEVICE to run")
+        guard let project = env["HOTPLATE_E2E_PROJECT"], let device = env["HOTPLATE_E2E_DEVICE"] else {
+            throw XCTSkip("set HOTPLATE_E2E_PROJECT and HOTPLATE_E2E_DEVICE to run")
         }
         guard let flutter = FlutterLocator.locate(manualPath: nil) else { throw XCTSkip("flutter not found") }
         let environment = FlutterLocator.environment(flutterPath: flutter)

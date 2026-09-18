@@ -1,5 +1,5 @@
 import SwiftUI
-import FlutterRunnerCore
+import HotplateCore
 
 struct SettingsView: View {
     @Environment(SessionViewModel.self) private var model

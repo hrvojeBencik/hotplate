@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "FlutterRunner",
+    name: "Hotplate",
     platforms: [.macOS(.v14)],
     targets: [
-        .target(name: "FlutterRunnerCore"),
-        .executableTarget(name: "FlutterRunner", dependencies: ["FlutterRunnerCore"]),
-        .testTarget(name: "FlutterRunnerCoreTests", dependencies: ["FlutterRunnerCore"]),
+        .target(name: "HotplateCore"),
+        .executableTarget(name: "Hotplate", dependencies: ["HotplateCore"]),
+        .testTarget(name: "HotplateCoreTests", dependencies: ["HotplateCore"]),
     ]
 )

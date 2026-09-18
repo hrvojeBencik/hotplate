@@ -1,5 +1,5 @@
 import XCTest
-@testable import FlutterRunnerCore
+@testable import HotplateCore
 
 final class DartChangeFilterTests: XCTestCase {
     func testDartInLib() { XCTAssertTrue(DartChangeFilter.isRelevant("/p/lib/main.dart")) }

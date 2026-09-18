@@ -1,5 +1,5 @@
 import XCTest
-@testable import FlutterRunnerCore
+@testable import HotplateCore
 
 final class DebouncerTests: XCTestCase {
     func testBurstFiresOnce() {

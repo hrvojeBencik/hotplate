@@ -1,5 +1,5 @@
 import XCTest
-@testable import FlutterRunnerCore
+@testable import HotplateCore
 
 final class ArgumentSplitterTests: XCTestCase {
     func testEmpty() { XCTAssertEqual(ArgumentSplitter.split(""), []); XCTAssertEqual(ArgumentSplitter.split("   "), []) }

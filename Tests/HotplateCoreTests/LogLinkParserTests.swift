@@ -1,5 +1,5 @@
 import XCTest
-@testable import FlutterRunnerCore
+@testable import HotplateCore
 
 final class LogLinkParserTests: XCTestCase {
     func testFindsPackageUriWithLineAndColumn() {

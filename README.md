@@ -1,4 +1,4 @@
-# FlutterRunner
+# Hotplate
 
 A tiny native macOS app that runs a Flutter project with `flutter run --machine`,
 exposes Run / Stop / Hot Reload / Hot Restart, hot-reloads automatically when a
@@ -15,10 +15,10 @@ Use any editor you like; this replaces only the "run + hot reload" part of VSCod
 
 ```bash
 swift build
-swift run FlutterRunner
+swift run Hotplate
 ```
 
-Or open `Package.swift` in Xcode and run the `FlutterRunner` scheme.
+Or open `Package.swift` in Xcode and run the `Hotplate` scheme.
 
 ## Tests
 
@@ -32,7 +32,7 @@ swift test
 scripts/build_app.sh
 ```
 
-Produces `dist/FlutterRunner.app`, `dist/FlutterRunner-<version>.zip`, `dist/FlutterRunner-<version>.dmg`
+Produces `dist/Hotplate.app`, `dist/Hotplate-<version>.zip`, `dist/Hotplate-<version>.dmg`
 and `dist/README.txt`.
 
 **Signing.** With no Developer ID certificate the app is ad-hoc signed and recipients must allow it in
@@ -41,8 +41,8 @@ System Settings › Privacy & Security. To ship without warnings you need the Ap
 1. Create a *Developer ID Application* certificate in Xcode › Settings › Accounts (it lands in your keychain;
    the script finds it automatically, or pass `SIGNING_IDENTITY="Developer ID Application: …"`).
 2. Store notarization credentials once:
-   `xcrun notarytool store-credentials FlutterRunnerNotary --apple-id you@example.com --team-id TEAMID --password <app-specific-password>`
-3. Build with `NOTARY_PROFILE=FlutterRunnerNotary scripts/build_app.sh`. The script notarizes the DMG, staples
+   `xcrun notarytool store-credentials HotplateNotary --apple-id you@example.com --team-id TEAMID --password <app-specific-password>`
+3. Build with `NOTARY_PROFILE=HotplateNotary scripts/build_app.sh`. The script notarizes the DMG, staples
    the ticket to both the DMG and the app, and re-zips.
 
 ## How it works
@@ -72,9 +72,9 @@ System Settings › Privacy & Security. To ship without warnings you need the Ap
 ## Layout
 
 ```
-Sources/FlutterRunnerCore   # protocol, process, watcher, models (unit-tested)
-Sources/FlutterRunner       # SwiftUI app
-Tests/FlutterRunnerCoreTests
+Sources/HotplateCore   # protocol, process, watcher, models (unit-tested)
+Sources/Hotplate       # SwiftUI app
+Tests/HotplateCoreTests
 scripts/build_app.sh        # .app + zip
 docs/superpowers/           # design spec and implementation plan
 ```

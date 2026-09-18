@@ -1,5 +1,5 @@
 import XCTest
-@testable import FlutterRunnerCore
+@testable import HotplateCore
 
 final class FlutterDaemonTests: XCTestCase {
     /// A shell script pretending to be `flutter run --machine`.

@@ -1,13 +1,13 @@
 import SwiftUI
-import FlutterRunnerCore
+import HotplateCore
 
 @main
-struct FlutterRunnerApp: App {
+struct HotplateApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = SessionViewModel.shared
 
     var body: some Scene {
-        Window("FlutterRunner", id: "main") {
+        Window("Hotplate", id: "main") {
             MainWindow().environment(model).frame(minWidth: 720, minHeight: 420)
         }
         .defaultSize(width: 960, height: 600)

@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import FlutterRunnerCore
+import HotplateCore
 
 /// Persists recent projects and global settings in UserDefaults.
 @MainActor @Observable

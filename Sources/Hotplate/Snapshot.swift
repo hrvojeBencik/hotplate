@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
-import FlutterRunnerCore
+import HotplateCore
 
-/// Developer aid: `FlutterRunner --snapshot <dir>` renders the main window and the menu bar
+/// Developer aid: `Hotplate --snapshot <dir>` renders the main window and the menu bar
 /// panel to PNG files (light and dark) using sample data, without needing screen recording.
 enum Snapshot {
     static var requestedDirectory: String? {
@@ -17,7 +17,7 @@ enum Snapshot {
         let model = SessionViewModel.shared
         // The Window scene opens the real main window shortly after launch; grab it, hide it, capture it.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            guard let window = NSApp.windows.first(where: { $0.contentView is NSHostingView<AnyView> || $0.title == "FlutterRunner" }) ?? NSApp.windows.first(where: { $0.isVisible }) else {
+            guard let window = NSApp.windows.first(where: { $0.contentView is NSHostingView<AnyView> || $0.title == "Hotplate" }) ?? NSApp.windows.first(where: { $0.isVisible }) else {
                 FileHandle.standardError.write(Data("no main window found\n".utf8)); exit(1)
             }
             window.alphaValue = 0.01  // 0 would stop CoreAnimation from rendering the layers
@@ -82,8 +82,8 @@ extension SessionViewModel {
     /// A populated model for previews and snapshots; never touches the real defaults.
     @MainActor
     static func preview(state: SessionState = .running) -> SessionViewModel {
-        let defaults = UserDefaults(suiteName: "com.hrvojebencik.FlutterRunner.preview")!
-        defaults.removePersistentDomain(forName: "com.hrvojebencik.FlutterRunner.preview")
+        let defaults = UserDefaults(suiteName: "com.hrvojebencik.hotplate.preview")!
+        defaults.removePersistentDomain(forName: "com.hrvojebencik.hotplate.preview")
         let m = SessionViewModel(store: ProjectStore(defaults: defaults))
         m.clearLogs()
         m.project = Project(path: "/Users/me/Projects/Lootique/lootique", name: "lootique")
