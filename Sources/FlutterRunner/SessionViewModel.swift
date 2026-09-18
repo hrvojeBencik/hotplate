@@ -29,7 +29,9 @@ final class SessionViewModel {
     var extraArgs: String = "" {
         didSet {
             // A manual edit of the args field means "custom", unless we are applying a config ourselves.
-            if !applyingLaunchConfig, !suppressPersist, selectedLaunchConfigName != nil { selectedLaunchConfigName = nil }
+            if !applyingLaunchConfig, !suppressPersist, oldValue != extraArgs, selectedLaunchConfigName != nil {
+                selectedLaunchConfigName = nil
+            }
             persistProjectSettings()
         }
     }
@@ -326,9 +328,12 @@ final class SessionViewModel {
 
     // MARK: Logs
 
+    private let mirrorLogsToStderr = ProcessInfo.processInfo.environment["FLUTTER_RUNNER_LOG_STDERR"] == "1"
+
     func log(_ text: String, _ kind: LogKind = .normal) {
         for line in text.split(separator: "\n", omittingEmptySubsequences: true) {
             logs.append(LogLine(id: nextLogId, text: String(line), kind: kind)); nextLogId += 1
+            if mirrorLogsToStderr { FileHandle.standardError.write(Data("[\(kind)] \(line)\n".utf8)) }
         }
         if logs.count > maxLogLines { logs.removeFirst(logs.count - maxLogLines) }
     }

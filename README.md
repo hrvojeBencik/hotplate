@@ -42,6 +42,10 @@ Produces `dist/FlutterRunner.app`, `dist/FlutterRunner.zip` and `dist/README.txt
 - `FileWatcher` (FSEvents) watches `lib/` for `.dart` changes, debounced (300 ms
   by default), and triggers a hot reload while the app is running.
 - `DeviceService` runs `flutter devices --machine` for the device picker.
+- `LaunchConfigReader` reads `.vscode/launch.json` (comments and trailing commas
+  tolerated). Pick a configuration in the toolbar and its `program`, `args`,
+  `toolArgs`, `flutterMode` and `deviceId` become the run arguments. Editing the
+  args field switches back to "Custom". The file is re-read before every run.
 - Recent projects, the last device and extra args per project are stored in
   UserDefaults.
 
