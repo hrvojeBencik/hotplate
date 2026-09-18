@@ -9,6 +9,7 @@ final class ProjectStore {
     private enum Key {
         static let recents = "recents", flutterPath = "manualFlutterPath", debounce = "debounceMs", lastProject = "lastProjectPath"
         static let editorApp = "editorAppPath", editorCommand = "editorCustomCommand", editorUseCommand = "editorUseCustomCommand"
+        static let editorFileCommand = "editorOpenFileCommand", hotkeys = "globalHotkeysEnabled"
     }
 
     var recents: [Project] { didSet { save() } }
@@ -20,6 +21,9 @@ final class ProjectStore {
     /// Shell command template with `{path}`; used when `editorUseCustomCommand` is on.
     var editorCustomCommand: String { didSet { defaults.set(editorCustomCommand, forKey: Key.editorCommand) } }
     var editorUseCustomCommand: Bool { didSet { defaults.set(editorUseCustomCommand, forKey: Key.editorUseCommand) } }
+    /// Shell command template with `{file}` and `{line}`; used for log links when the custom command is on.
+    var editorOpenFileCommand: String { didSet { defaults.set(editorOpenFileCommand, forKey: Key.editorFileCommand) } }
+    var globalHotkeysEnabled: Bool { didSet { defaults.set(globalHotkeysEnabled, forKey: Key.hotkeys) } }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -35,6 +39,8 @@ final class ProjectStore {
         editorAppPath = defaults.string(forKey: Key.editorApp) ?? ""
         editorCustomCommand = defaults.string(forKey: Key.editorCommand) ?? "zed {path}"
         editorUseCustomCommand = defaults.bool(forKey: Key.editorUseCommand)
+        editorOpenFileCommand = defaults.string(forKey: Key.editorFileCommand) ?? "zed {file}:{line}"
+        globalHotkeysEnabled = defaults.object(forKey: Key.hotkeys) as? Bool ?? true
     }
 
     private func save() {

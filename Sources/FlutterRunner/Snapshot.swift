@@ -108,6 +108,7 @@ extension SessionViewModel {
         m.log("Change detected in lib/ → hot reload", .info)
         m.log("Hot reload done in 412 ms. Reloaded 3 of 1284 libraries in 397ms.", .success)
         m.log("Another exception was thrown: RenderFlex overflowed by 24 pixels on the bottom.", .error)
+        m.log("#0      TaskCard.build (package:lootique/features/tasks/presentation/widgets/task_card.dart:118:14)", .error)
         m.log("The following plugins do not support Swift Package Manager for ios:", .warning)
         m.log("  - posthog_flutter", .warning)
         m.log("Change detected in lib/ → hot reload", .info)

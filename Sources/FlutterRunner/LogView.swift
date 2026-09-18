@@ -1,4 +1,5 @@
 import SwiftUI
+import FlutterRunnerCore
 
 struct LogView: View {
     @Environment(SessionViewModel.self) private var model
@@ -23,6 +24,15 @@ struct LogView: View {
             }
         }
         .environment(\.colorScheme, .dark)
+        .environment(\.openURL, OpenURLAction { url in
+            guard url.scheme == "flutterrunner", url.host == "open",
+                  let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+                  let location = items.first(where: { $0.name == "loc" })?.value else { return .systemAction }
+            let line = items.first(where: { $0.name == "line" })?.value.flatMap(Int.init)
+            let column = items.first(where: { $0.name == "col" })?.value.flatMap(Int.init)
+            model.openLogLink(location: location, line: line, column: column)
+            return .handled
+        })
     }
 
     private var emptyState: some View {
@@ -43,12 +53,28 @@ struct LogView: View {
 private struct LogRow: View {
     let line: LogLine
 
+    /// The line with Dart source references turned into links that `LogView` routes to the editor.
+    private var attributed: AttributedString {
+        var text = AttributedString(line.text)
+        for link in LogLinkParser.links(in: line.text) {
+            guard let range = Range(link.range, in: text) else { continue }
+            var comps = URLComponents(); comps.scheme = "flutterrunner"; comps.host = "open"
+            comps.queryItems = [URLQueryItem(name: "loc", value: link.location)]
+                + (link.line.map { [URLQueryItem(name: "line", value: String($0))] } ?? [])
+                + (link.column.map { [URLQueryItem(name: "col", value: String($0))] } ?? [])
+            text[range].link = comps.url
+            text[range].underlineStyle = .single
+            text[range].foregroundColor = Theme.info
+        }
+        return text
+    }
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(Theme.timeFormatter.string(from: line.time))
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Theme.logMuted.opacity(0.7))
-            Text(line.text)
+            Text(attributed)
                 .font(.system(size: 12, weight: line.kind == .success ? .medium : .regular, design: .monospaced))
                 .foregroundStyle(Theme.color(for: line.kind))
                 .textSelection(.enabled)

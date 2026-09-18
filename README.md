@@ -32,8 +32,18 @@ swift test
 scripts/build_app.sh
 ```
 
-Produces `dist/FlutterRunner.app`, `dist/FlutterRunner.zip` and `dist/README.txt`
-(recipient instructions, since the app is ad-hoc signed and not notarized).
+Produces `dist/FlutterRunner.app`, `dist/FlutterRunner-<version>.zip`, `dist/FlutterRunner-<version>.dmg`
+and `dist/README.txt`.
+
+**Signing.** With no Developer ID certificate the app is ad-hoc signed and recipients must allow it in
+System Settings › Privacy & Security. To ship without warnings you need the Apple Developer Program:
+
+1. Create a *Developer ID Application* certificate in Xcode › Settings › Accounts (it lands in your keychain;
+   the script finds it automatically, or pass `SIGNING_IDENTITY="Developer ID Application: …"`).
+2. Store notarization credentials once:
+   `xcrun notarytool store-credentials FlutterRunnerNotary --apple-id you@example.com --team-id TEAMID --password <app-specific-password>`
+3. Build with `NOTARY_PROFILE=FlutterRunnerNotary scripts/build_app.sh`. The script notarizes the DMG, staples
+   the ticket to both the DMG and the app, and re-zips.
 
 ## How it works
 
@@ -50,6 +60,12 @@ Produces `dist/FlutterRunner.app`, `dist/FlutterRunner.zip` and `dist/README.txt
   lists detected apps (Zed, VS Code, Cursor, Sublime, Android Studio, Xcode, …),
   lets you pick any other .app, or run a custom shell command with `{path}`
   (for terminal editors, e.g. `open -a kitty --args nvim {path}`).
+- Dart file references in the log (`package:app/x.dart:12:3`, `lib/main.dart:5`, absolute
+  paths) are links: click one to open the file at that line in your editor. Uses the CLI
+  bundled with VS Code, Cursor, Windsurf, Zed, Sublime, Xcode, Android Studio, IntelliJ
+  (`.dart_tool/package_config.json` resolves other packages). Custom editors get a
+  second template with `{file}` and `{line}`.
+- Global shortcuts: ⌃⌥R hot reload, ⌃⌥⇧R hot restart from any app (Settings → Global shortcuts).
 - Recent projects, the last device and extra args per project are stored in
   UserDefaults.
 

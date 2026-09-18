@@ -26,8 +26,9 @@ struct SettingsView: View {
                 }
                 Button("Other application…") { model.chooseEditorApp() }
                 if store.editorUseCustomCommand {
-                    TextField("Command, e.g. zed {path}  or  open -a kitty --args nvim {path}", text: $store.editorCustomCommand)
-                    Text("Runs in your login shell; {path} is replaced with the project folder.")
+                    TextField("Open project: e.g. zed {path}  or  open -a kitty --args nvim {path}", text: $store.editorCustomCommand)
+                    TextField("Open file at line: e.g. zed {file}:{line}  or  nvim +{line} {file}", text: $store.editorOpenFileCommand)
+                    Text("Both run in your login shell. {path} = project folder, {file} = file, {line} = line number.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 HStack {
@@ -36,6 +37,14 @@ struct SettingsView: View {
                     Spacer()
                     Button("Re-scan") { model.refreshInstalledEditors() }
                 }
+            }
+            Section("Global shortcuts") {
+                Toggle("Hot reload with ⌃⌥R and hot restart with ⌃⌥⇧R from any app", isOn: $store.globalHotkeysEnabled)
+                    .onChange(of: store.globalHotkeysEnabled) { _, on in
+                        if on { HotKeyManager.shared.register() } else { HotKeyManager.shared.unregister() }
+                    }
+                Text("Lets you stay in your editor and reload without switching windows.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Auto reload") {
                 Stepper("Debounce: \(store.debounceMs) ms", value: $store.debounceMs, in: 100...3000, step: 100)

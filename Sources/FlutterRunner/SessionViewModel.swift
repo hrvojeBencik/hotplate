@@ -236,6 +236,38 @@ final class SessionViewModel {
         }
     }
 
+    /// Opens the file behind a log link at its line, in the chosen editor.
+    func openLogLink(location: String, line: Int?, column: Int?) {
+        guard let project else { return }
+        let resolver = PackageConfigResolver(projectPath: project.path)
+        guard let file = resolver.resolve(location), FileManager.default.fileExists(atPath: file) else {
+            log("Can't find a file for \(location). Run `flutter pub get` if it is in another package.", .warning)
+            return
+        }
+        let env = flutterPath.map { FlutterLocator.environment(flutterPath: $0) } ?? ProcessInfo.processInfo.environment
+        let where_ = line.map { ":\($0)" } ?? ""
+        do {
+            if store.editorUseCustomCommand {
+                let cmd = EditorLauncher.expand(template: store.editorOpenFileCommand, projectPath: project.path, file: file, line: line)
+                try EditorLauncher.run(argv: ["/bin/zsh", "-lic", cmd], environment: env)
+                log("Opened \((file as NSString).lastPathComponent)\(where_) via \(cmd)", .info)
+                return
+            }
+            guard let editor = effectiveEditor else { log("No editor found. Pick one in Settings (⌘,) → Editor.", .error); return }
+            let bundleId = Bundle(path: editor.appPath)?.bundleIdentifier ?? ""
+            if let argv = EditorLauncher.openFileCommand(appPath: editor.appPath, bundleIdentifier: bundleId, file: file, line: line, column: column),
+               FileManager.default.isExecutableFile(atPath: argv[0]) {
+                try EditorLauncher.run(argv: argv, environment: env)
+                log("Opened \((file as NSString).lastPathComponent)\(where_) in \(editor.name).", .info)
+            } else {
+                Task { try? await EditorLauncher.open(projectPath: file, withApp: editor.appPath) }
+                log("Opened \((file as NSString).lastPathComponent) in \(editor.name) (this editor has no line-jump CLI).", .info)
+            }
+        } catch {
+            log("Could not open \(file): \(error.localizedDescription)", .error)
+        }
+    }
+
     // MARK: Launch configurations (.vscode/launch.json)
 
     /// Applies a launch configuration to the args field (and device, if the config names one).
