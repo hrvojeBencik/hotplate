@@ -40,4 +40,17 @@ final class TextInputTests: XCTestCase {
         t.draw(into: &buf, y: 0, prompt: "args: ")
         XCTAssertTrue(buf.text(row: 0).hasPrefix(" args: --flavor dev"))
     }
+
+    func testCombiningScalarDoesNotBreakCursor() {
+        var t = TextInput(text: "")
+        _ = t.handle(.char("e"))
+        _ = t.handle(.char("\u{0301}"))
+        XCTAssertEqual(t.text, "é")
+        XCTAssertEqual(t.cursor, 1)
+        _ = t.handle(.backspace)
+        XCTAssertEqual(t.text, "")
+        XCTAssertEqual(t.cursor, 0)
+        t.insert("👍\u{1F3FD}x")
+        XCTAssertEqual(t.cursor, t.text.count)
+    }
 }

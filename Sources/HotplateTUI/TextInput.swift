@@ -9,10 +9,10 @@ public struct TextInput: Equatable {
     public init(text: String) { self.text = text; cursor = text.count }
 
     public mutating func insert(_ s: String) {
-        var chars = Array(text)
-        chars.insert(contentsOf: Array(s), at: cursor)
-        text = String(chars)
-        cursor += s.count
+        let chars = Array(text)
+        let prefix = String(chars[0..<min(cursor, chars.count)]) + s
+        text = prefix + String(chars[min(cursor, chars.count)...])
+        cursor = prefix.count
     }
 
     public mutating func handle(_ key: Key) -> Outcome {
@@ -36,6 +36,7 @@ public struct TextInput: Equatable {
         default: return .editing
         }
         text = String(chars)
+        cursor = min(cursor, text.count)
         return .editing
     }
 
