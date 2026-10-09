@@ -34,8 +34,8 @@ public final class TerminalLoop {
     private func readInput() {
         var buf = [UInt8](repeating: 0, count: 4096)
         let n = read(STDIN_FILENO, &buf, buf.count)
-        if n == 0 {
-            // The terminal went away: stop reading so EOF does not count as repeated quit requests.
+        if n == 0 || (n < 0 && errno != EINTR && errno != EAGAIN) {
+            // The terminal went away (EOF or a hard read error): stop reading so it does not spin or count as repeated quit requests.
             input?.cancel()
             app.quit()
             return

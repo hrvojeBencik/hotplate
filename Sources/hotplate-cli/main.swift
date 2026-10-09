@@ -7,6 +7,9 @@ func fail(_ message: String, code: Int32) -> Never {
     exit(code)
 }
 
+// A dead reader (flutter, pbcopy) must not kill us with the terminal left raw; writes then fail with EPIPE.
+signal(SIGPIPE, SIG_IGN)
+
 let options: CommandLineOptions
 do {
     options = try CommandLineOptions.parse(Array(CommandLine.arguments.dropFirst()))

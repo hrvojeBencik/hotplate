@@ -62,8 +62,8 @@ hotplate [putanja] [opcije] [-- <flutter run argumenti>]
 | `-h, --help`, `--version` | pomoć, verzija |
 
 Nepoznata opcija ili `-c` bez vrednosti: poruka i kratka upotreba na stderr,
-izlazni kod 2. Ako stdin ili stdout nije terminal: poruka „hotplate needs an
-interactive terminal“, izlazni kod 2.
+izlazni kod 2. Ako stdin ili stdout nije terminal: poruka `hotplate: needs an
+interactive terminal`, izlazni kod 2.
 
 **Pravilo pamćenja.** Opcije sa komandne linije važe samo za tu sesiju i
 nikad se ne upisuju. Izbori napravljeni unutar TUI-ja (uređaj, konfiguracija,
@@ -255,7 +255,7 @@ nije.
 
 - `main.swift` parsira opcije, proverava TTY, pravi `Session` (sa
   `--flutter` putanjom, ako je data, kao ručnom putanjom samo za ovu sesiju)
-  i `TUIApp`, pa poziva `dispatchMain()`.
+  i `TUIApp`, pa poziva `RunLoop.main.run()`.
 - Stdin: `DispatchSource.makeReadSource` na fd 0 → `InputDecoder` →
   događaji na `@MainActor`. Esc tajmer ide preko `DispatchQueue.main.asyncAfter`.
 - SIGWINCH: `DispatchSource.makeSignalSource` → nova veličina → pun redraw.
