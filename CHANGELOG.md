@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 — 2026-10-09
+
+- Quitting the app right after Stop now waits for flutter to exit (and kills it if it hangs) instead of leaving it running.
+- Switching projects no longer carries a launch configuration's device over to the new project.
+
 ## 1.1.0 — 2026-10-09
 
 - `hotplate` command: the whole app in your terminal. Run, hot reload on save, devices, launch.json configurations,
