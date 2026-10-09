@@ -219,4 +219,46 @@ final class SessionOverridesTests: XCTestCase {
         _ = await s.startup(autoRun: true)
         XCTAssertEqual(saved(h, path)?.lastDeviceId, "macos")
     }
+
+    func testFallbackDeviceIsNotSavedByOtherSettingChanges() async throws {
+        let h = SessionHarness(devices: threeDevices)
+        let path = try TestProject.make()
+        let s = h.makeSession(store: h.makeStore())
+        s.selectProject(path: path)
+        let first = await s.startup(autoRun: true)
+        XCTAssertEqual(first, .needsDevice(filter: ""))
+        s.setAutoReload(false)
+        s.setArgs("--x")
+        XCTAssertNil(saved(h, path)?.lastDeviceId)
+
+        let s2 = h.makeSession(store: h.makeStore())
+        s2.selectProject(path: path)
+        let second = await s2.startup(autoRun: true)
+        XCTAssertEqual(second, .needsDevice(filter: ""))
+        XCTAssertTrue(h.daemons.isEmpty)
+    }
+
+    func testRunningOnTheFallbackRemembersIt() async throws {
+        let h = SessionHarness(devices: threeDevices)
+        let path = try TestProject.make()
+        let s = h.makeSession(store: h.makeStore())
+        s.selectProject(path: path)
+        _ = await s.startup(autoRun: true)
+        let fallback = try XCTUnwrap(s.selectedDeviceId)
+        await s.run()
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, fallback)
+    }
+
+    func testChoosingTheOverriddenConfigInTheTUISavesItsDevice() async throws {
+        let h = SessionHarness(devices: threeDevices)
+        let (path, store) = try deviceProject(h, savedDevice: "macos")
+        let s = h.makeSession(store: store)
+        s.overrides = SessionOverrides(configName: "Dev")
+        s.selectProject(path: path)
+        _ = await s.startup(autoRun: false)
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "macos")
+        s.chooseLaunchConfig(name: "Dev")
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "chrome")
+        XCTAssertEqual(saved(h, path)?.launchConfigName, "Dev")
+    }
 }

@@ -36,8 +36,13 @@ public final class Session {
     /// The saved device when the project was opened. The device refresh may pick and save a fallback,
     /// so `startup` must not read `project.lastDeviceId` to decide whether the device was remembered.
     @ObservationIgnored private var deviceAtOpen: String?
-    /// True while the selected device came from a launch config that is only overridden for this session.
-    @ObservationIgnored private var deviceIsSessionOnly = false
+    /// Where the selected device came from; only a `remembered` device is written to `lastDeviceId`.
+    private enum DeviceOrigin {
+        case remembered        // the saved device, a TUI/GUI choice, or a config device with no override
+        case fallback          // the first device, suggested when nothing usable was saved; saved once the user runs on it
+        case overriddenConfig  // a device pinned by a launch config that is overridden for this session only
+    }
+    @ObservationIgnored private var deviceOrigin = DeviceOrigin.remembered
 
     @ObservationIgnored private let deps: SessionDependencies
     @ObservationIgnored private let flutterPathOverride: String?
@@ -133,7 +138,7 @@ public final class Session {
                 selectedLaunchConfigName = nil
             }
             deviceAtOpen = p.lastDeviceId
-            deviceIsSessionOnly = false
+            deviceOrigin = .remembered
             applyOverrides()
             Task { await refreshDevices() }
         } catch {
@@ -150,7 +155,7 @@ public final class Session {
     private func persistProjectSettings() {
         guard !suppressPersist, var p = project else { return }
         // An overridden field keeps its saved value; `project` always holds the saved values.
-        if overrides.deviceQuery == nil, !deviceIsSessionOnly { p.lastDeviceId = selectedDeviceId }
+        if overrides.deviceQuery == nil, deviceOrigin == .remembered { p.lastDeviceId = selectedDeviceId }
         if overrides.configName == nil, overrides.args == nil {
             p.extraArgs = extraArgs
             p.launchConfigName = selectedLaunchConfigName
@@ -180,7 +185,7 @@ public final class Session {
 
     public func chooseDevice(id: String) {
         overrides.deviceQuery = nil
-        deviceIsSessionOnly = false
+        deviceOrigin = .remembered
         selectedDeviceId = id
     }
 
@@ -327,7 +332,7 @@ public final class Session {
     /// A config's device never replaces a `--device` choice; under an overridden config it is not saved.
     private func adoptConfigDevice(_ id: String) {
         guard overrides.deviceQuery == nil, devices.contains(where: { $0.id == id }) else { return }
-        if overrides.configName != nil || overrides.args != nil { deviceIsSessionOnly = true }
+        deviceOrigin = (overrides.configName != nil || overrides.args != nil) ? .overriddenConfig : .remembered
         selectedDeviceId = id
     }
 
@@ -389,6 +394,7 @@ public final class Session {
                 let wasSuppressed = suppressPersist
                 suppressPersist = true
                 selectedDeviceId = list.first?.id
+                if list.first != nil { deviceOrigin = .fallback }
                 suppressPersist = wasSuppressed
             }
             if list.isEmpty { deviceError = "No devices found. Start a simulator or connect a device, then refresh." }
@@ -406,6 +412,7 @@ public final class Session {
         clearLogs()
         reloadLaunchConfigs()
         guard let project, let deviceId = selectedDeviceId, let flutterPath else { return }
+        if deviceOrigin == .fallback { deviceOrigin = .remembered; persistProjectSettings() }  // running on it means choosing it
         state = .starting
         pendingReload = false
         let args = ArgumentSplitter.split(extraArgs)
