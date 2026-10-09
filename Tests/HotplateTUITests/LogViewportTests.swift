@@ -126,4 +126,18 @@ final class LogViewportTests: XCTestCase {
         XCTAssertNil(v.searchQuery)
         XCTAssertNil(v.searchMatch(from: nil, forward: true))
     }
+
+    func testSanitizeCarriageReturnOverwrites() {
+        XCTAssertEqual(LogText.sanitize("10%\r20%\r30%"), "30%")
+        XCTAssertEqual(LogText.sanitize("done\r\n"), "done")
+    }
+
+    func testSanitizeOSCSequences() {
+        XCTAssertEqual(LogText.sanitize("\u{1B}]8;;https://x.dev\u{1B}\\link\u{1B}]8;;\u{1B}\\ ok"), "link ok")
+        XCTAssertEqual(LogText.sanitize("\u{1B}]0;title\u{07}hi"), "hi")
+    }
+
+    func testSanitizeEscapeSequences() {
+        XCTAssertEqual(LogText.sanitize("a\u{1B}(Bb"), "ab")
+    }
 }
