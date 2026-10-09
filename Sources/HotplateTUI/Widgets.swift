@@ -20,23 +20,58 @@ struct StatusInfo {
 
 enum StatusBar {
     static func draw(_ info: StatusInfo, into buf: inout ScreenBuffer) {
+        let width = buf.width
+
+        // Build right part (status + auto-reload)
+        let statusText = info.flutterMissing ? "● flutter not found" : "● \(info.statusText)"
+        var rightParts: [String] = [statusText]
+        if info.autoReload {
+            rightParts.append("↻ auto")
+        }
+        let rightText = rightParts.joined(separator: "  ")
+        let rightWidth = CharWidth.of(rightText)
+
+        // Draw right part right-aligned
+        let rightX = max(1, width - rightWidth - 1)
+        if rightX > 1 {
+            var x = rightX
+            x += buf.put(statusText, x: x, y: 0, style: info.flutterMissing ?
+                Style(fg: .red, bold: true) : Style(fg: color(for: info.state), bold: true))
+            if info.autoReload {
+                x += buf.put("  ", x: x, y: 0)
+                buf.put("↻ auto", x: x, y: 0, style: Style(fg: .cyan))
+            }
+        }
+
+        // Build and draw left part, truncating as needed
+        let availableWidth = rightX - 3
+        var device = info.device ?? "no device"
+        var config = info.config ?? "custom"
+        var project = info.project ?? "no project"
+
+        let minColumnWidth = 6
+        while CharWidth.of("Hotplate · \(project)   \(device)   cfg: \(config)") > availableWidth &&
+              (CharWidth.of(device) > minColumnWidth ||
+               CharWidth.of(config) > minColumnWidth ||
+               CharWidth.of(project) > minColumnWidth) {
+            if CharWidth.of(device) > minColumnWidth {
+                device = CharWidth.truncate(device, to: CharWidth.of(device) - 1)
+            } else if CharWidth.of(config) > minColumnWidth {
+                config = CharWidth.truncate(config, to: CharWidth.of(config) - 1)
+            } else if CharWidth.of(project) > minColumnWidth {
+                project = CharWidth.truncate(project, to: CharWidth.of(project) - 1)
+            } else {
+                break
+            }
+        }
+
         var x = 1
         x += buf.put("Hotplate", x: x, y: 0, style: Style(bold: true))
-        x += buf.put(" · \(info.project ?? "no project")", x: x, y: 0)
+        x += buf.put(" · \(project)", x: x, y: 0)
         x += 3
-        if info.flutterMissing {
-            x += buf.put("● flutter not found", x: x, y: 0, style: Style(fg: .red, bold: true))
-        } else {
-            x += buf.put("● \(info.statusText)", x: x, y: 0, style: Style(fg: color(for: info.state), bold: true))
-        }
+        x += buf.put(device, x: x, y: 0)
         x += 3
-        x += buf.put(info.device ?? "no device", x: x, y: 0)
-        x += 3
-        x += buf.put("cfg: \(info.config ?? "custom")", x: x, y: 0, style: Style(dim: true))
-        if info.autoReload {
-            x += 3
-            buf.put("↻ auto", x: x, y: 0, style: Style(fg: .cyan))
-        }
+        buf.put("cfg: \(config)", x: x, y: 0, style: Style(dim: true))
     }
 
     static func color(for state: SessionState) -> TermColor {
@@ -68,12 +103,25 @@ enum HelpOverlay {
                 "Click Select a line; click a file link to open it",
                 "Wheel Scroll the log",
                 "Shift+drag selects text (Option+drag in iTerm2)",
-                "",
-                "Any key closes this help.",
             ]
     }
 
-    static func draw(into buf: inout ScreenBuffer) {
+    static func maxScroll(for size: TerminalSize) -> Int {
+        let w = size.width - 4
+        let h = size.height - 2
+        guard w > 10, h > 4 else { return 0 }
+        let columnWidth = 48
+        let perColumn = h - 4
+        guard perColumn > 0 else { return 0 }
+        let fit = columnWidth > 0 ? (w - 4) / columnWidth : 1
+        let columns = max(1, fit)
+        let needsScrolling = lines.count > columns * perColumn
+        let activePerColumn = needsScrolling ? (perColumn - 1) : perColumn
+        let maxCapacity = columns * activePerColumn
+        return max(0, lines.count - maxCapacity)
+    }
+
+    static func draw(into buf: inout ScreenBuffer, scroll: Int) {
         let x0 = 2, y0 = 1, w = buf.width - 4, h = buf.height - 2
         guard w > 10, h > 4 else { return }
         for row in 0..<h { buf.fill(x: x0, y: y0 + row, width: w, style: .plain) }
@@ -86,20 +134,44 @@ enum HelpOverlay {
             buf.put("│", x: x0 + w - 1, y: y0 + row, style: border)
         }
         buf.put(" Keyboard shortcuts ", x: x0 + 2, y: y0, style: Style(bold: true))
-        let columnWidth = 52
+
+        let columnWidth = 48
+        let perColumn = h - 4
         let columns = max(1, (w - 4) / columnWidth)
-        let perColumn = h - 3
-        for (i, line) in lines.enumerated() {
-            let column = i / perColumn
-            guard column < columns else { break }
-            buf.put(line, x: x0 + 2 + column * columnWidth, y: y0 + 2 + i % perColumn, maxWidth: columnWidth - 2)
+
+        // If content doesn't fit in multi-column, use single-column scrolling
+        let needsScrolling = lines.count > columns * perColumn
+        let activeColumns = needsScrolling ? 1 : columns
+        let activePerColumn = needsScrolling ? (perColumn - 1) : perColumn
+        let maxScroll = maxScroll(for: TerminalSize(width: buf.width, height: buf.height))
+        let clampedScroll = min(max(0, scroll), maxScroll)
+
+        if needsScrolling {
+            // Single column scrolling
+            for (i, line) in lines.enumerated() {
+                let displayIndex = i - clampedScroll
+                guard displayIndex >= 0, displayIndex < activePerColumn else { continue }
+                buf.put(line, x: x0 + 2, y: y0 + 2 + displayIndex, maxWidth: columnWidth - 2)
+            }
+        } else {
+            // Multi-column layout
+            for (i, line) in lines.enumerated() {
+                let column = i / activePerColumn
+                guard column < activeColumns else { break }
+                buf.put(line, x: x0 + 2 + column * columnWidth, y: y0 + 2 + i % activePerColumn, maxWidth: columnWidth - 2)
+            }
         }
+
+        // Draw hint at bottom
+        let hintText = maxScroll > 0 ? " ↑↓ scroll · any other key closes " : " any key closes "
+        let hintX = (x0 + w) - CharWidth.of(hintText) - 1
+        buf.put(hintText, x: max(x0 + 2, hintX), y: y0 + h - 1, style: Style(dim: true))
     }
 }
 
 enum LogPane {
     static let timeFormatter: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "HH:mm:ss"; return f
+        let f = DateFormatter(); f.dateFormat = "HH:mm:ss"; f.locale = Locale(identifier: "en_US_POSIX"); return f
     }()
 
     static func draw(_ v: LogViewport, into buf: inout ScreenBuffer, top: Int) {

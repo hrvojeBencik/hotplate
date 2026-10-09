@@ -41,9 +41,49 @@ final class WidgetsTests: XCTestCase {
         XCTAssertTrue(HelpOverlay.lines.contains { $0.contains("Hot reload") })
         XCTAssertTrue(HelpOverlay.lines.contains { $0.contains("Shift") })
         var buf = ScreenBuffer(width: 120, height: 40)
-        HelpOverlay.draw(into: &buf)
+        HelpOverlay.draw(into: &buf, scroll: 0)
         let all = (0..<40).map { buf.text(row: $0) }.joined()
         XCTAssertTrue(all.contains("Keyboard shortcuts"))
         XCTAssertTrue(all.contains("Hot restart"))
+    }
+
+    func testHelpScrollingAt60x12() {
+        let size = TerminalSize(width: 60, height: 12)
+        let maxScroll = HelpOverlay.maxScroll(for: size)
+        XCTAssertGreaterThan(maxScroll, 0, "Should need scrolling at 60×12")
+
+        var buf = ScreenBuffer(width: 60, height: 12)
+        HelpOverlay.draw(into: &buf, scroll: 0)
+        let firstScroll = (0..<12).map { buf.text(row: $0) }.joined()
+        XCTAssertTrue(firstScroll.contains("Hot reload"), "First scroll should show Hot reload")
+
+        var buf2 = ScreenBuffer(width: 60, height: 12)
+        HelpOverlay.draw(into: &buf2, scroll: maxScroll)
+        let lastScroll = (0..<12).map { buf2.text(row: $0) }.joined()
+        XCTAssertTrue(lastScroll.contains("Shift"), "Last scroll should show Shift+drag note")
+    }
+
+    func testHelpFitsAt120x40() {
+        let size = TerminalSize(width: 120, height: 40)
+        let maxScroll = HelpOverlay.maxScroll(for: size)
+        XCTAssertEqual(maxScroll, 0, "Should fit without scrolling at 120×40")
+
+        var buf = ScreenBuffer(width: 120, height: 40)
+        HelpOverlay.draw(into: &buf, scroll: 0)
+        let all = (0..<40).map { buf.text(row: $0) }.joined()
+        XCTAssertTrue(all.contains("Hot reload"))
+        XCTAssertTrue(all.contains("Shift"))
+    }
+
+    func testStatusBarAt60ColumnsWithLongNames() {
+        var buf = ScreenBuffer(width: 60, height: 1)
+        StatusBar.draw(StatusInfo(project: "my_long_project_name", state: .running, statusText: "Running",
+                                  flutterMissing: false, device: "Pixel 8 Pro API 34 emulator-5554",
+                                  config: "development", autoReload: true), into: &buf)
+        let row = buf.text(row: 0)
+        XCTAssertTrue(row.contains("● Running"), "Status should be visible")
+        XCTAssertTrue(row.contains("↻ auto"), "Auto reload should be visible")
+        XCTAssertTrue(row.contains("…"), "Truncated text should have ellipsis")
+        XCTAssertLessThanOrEqual(CharWidth.of(row.trimmingCharacters(in: .whitespaces)), 60)
     }
 }
