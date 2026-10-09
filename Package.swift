@@ -8,6 +8,7 @@ let package = Package(
         .target(name: "HotplateCore"),
         .target(name: "HotplateTUI", dependencies: ["HotplateCore"]),
         .executableTarget(name: "Hotplate", dependencies: ["HotplateCore"]),
+        .executableTarget(name: "hotplate-cli", dependencies: ["HotplateCore", "HotplateTUI"], path: "Sources/hotplate-cli"),
         .target(name: "HotplateTestSupport", dependencies: ["HotplateCore"], path: "Tests/HotplateTestSupport"),
         .testTarget(name: "HotplateCoreTests", dependencies: ["HotplateCore", "HotplateTestSupport"]),
         .testTarget(name: "HotplateTUITests", dependencies: ["HotplateTUI", "HotplateCore", "HotplateTestSupport"]),

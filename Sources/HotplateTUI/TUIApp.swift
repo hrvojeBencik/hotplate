@@ -103,9 +103,13 @@ public final class TUIApp {
         case .previousLink: if let id = viewport.linkLine(from: viewport.selectedLineId, forward: false) { viewport.select(lineId: id) }
         case .nextLink: if let id = viewport.linkLine(from: viewport.selectedLineId, forward: true) { viewport.select(lineId: id) }
         case .copyLine:
-            if let id = viewport.selectedLineId, let e = viewport.entry(id) { copy(e.text) }
+            if let id = viewport.selectedLineId, let e = viewport.entry(id) {
+                copy(e.text)
+                session.log("Copied the selected line.", .info)
+            }
         case .copyAll:
             copy(session.logs.map { "\(LogPane.timeFormatter.string(from: $0.time))  \($0.text)" }.joined(separator: "\n"))
+            session.log("Copied the log (\(session.logs.count) lines).", .info)
         case .search: input = TextInput(text: viewport.searchQuery ?? ""); mode = .input(.search)
         case .nextMatch: if let id = viewport.searchMatch(from: viewport.selectedLineId, forward: true) { viewport.select(lineId: id) }
         case .previousMatch: if let id = viewport.searchMatch(from: viewport.selectedLineId, forward: false) { viewport.select(lineId: id) }
