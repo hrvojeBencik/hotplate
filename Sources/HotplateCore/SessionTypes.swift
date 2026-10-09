@@ -29,3 +29,22 @@ public struct SessionHints: Sendable {
     public static let terminal = SessionHints(editor: "Press E to choose one.",
                                               flutter: "Pass --flutter <path> or set it in Hotplate Settings.")
 }
+
+/// Choices given on the command line. They apply to this session only and are never saved.
+public struct SessionOverrides: Equatable, Sendable {
+    public var deviceQuery: String?
+    public var configName: String?
+    public var args: String?
+    public var autoReload: Bool?
+
+    public init(deviceQuery: String? = nil, configName: String? = nil, args: String? = nil, autoReload: Bool? = nil) {
+        self.deviceQuery = deviceQuery; self.configName = configName; self.args = args; self.autoReload = autoReload
+    }
+}
+
+public enum StartupOutcome: Equatable, Sendable {
+    case started
+    case idle
+    /// No device could be chosen safely; the front end should show the device list with this filter.
+    case needsDevice(filter: String)
+}

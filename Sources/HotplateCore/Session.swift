@@ -31,6 +31,11 @@ public final class Session {
     public var installedEditors: [InstalledEditor] = EditorLauncher.detectInstalled()
     /// Called when the user should notice a failure (the app beeps).
     @ObservationIgnored public var onError: ((String) -> Void)?
+    /// Command-line choices for this session only; `persistProjectSettings` never writes them.
+    public var overrides = SessionOverrides()
+    /// The saved device when the project was opened. The device refresh may pick and save a fallback,
+    /// so `startup` must not read `project.lastDeviceId` to decide whether the device was remembered.
+    @ObservationIgnored private var deviceAtOpen: String?
 
     @ObservationIgnored private let deps: SessionDependencies
     @ObservationIgnored private let flutterPathOverride: String?
@@ -125,6 +130,8 @@ public final class Session {
             } else {
                 selectedLaunchConfigName = nil
             }
+            deviceAtOpen = p.lastDeviceId
+            applyOverrides()
             Task { await refreshDevices() }
         } catch {
             log(error.localizedDescription, .error)
@@ -139,10 +146,61 @@ public final class Session {
 
     private func persistProjectSettings() {
         guard !suppressPersist, var p = project else { return }
-        p.lastDeviceId = selectedDeviceId; p.extraArgs = extraArgs; p.autoReload = autoReload
-        p.launchConfigName = selectedLaunchConfigName
+        // An overridden field keeps its saved value; `project` always holds the saved values.
+        if overrides.deviceQuery == nil { p.lastDeviceId = selectedDeviceId }
+        if overrides.configName == nil, overrides.args == nil {
+            p.extraArgs = extraArgs
+            p.launchConfigName = selectedLaunchConfigName
+        }
+        if overrides.autoReload == nil { p.autoReload = autoReload }
         project = p
         store.update(p)
+    }
+
+    private func applyOverrides() {
+        if let name = overrides.configName {
+            if launchConfigs.contains(where: { $0.name == name }) {
+                selectLaunchConfig(name: name)
+            } else {
+                log("Launch config \"\(name)\" not found in launch.json; using the saved settings.", .warning)
+                overrides.configName = nil
+            }
+        }
+        if let args = overrides.args {
+            extraArgs = args
+            selectedLaunchConfigName = nil
+        }
+        if let on = overrides.autoReload { autoReload = on }
+    }
+
+    // MARK: Choices made in the terminal UI (clear the matching override, then save as usual)
+
+    public func chooseDevice(id: String) {
+        overrides.deviceQuery = nil
+        selectedDeviceId = id
+    }
+
+    /// `nil` means "Custom": keep the current args.
+    public func chooseLaunchConfig(name: String?) {
+        overrides.configName = nil; overrides.args = nil
+        selectLaunchConfig(name: name)
+    }
+
+    public func setArgs(_ args: String) {
+        overrides.configName = nil; overrides.args = nil
+        extraArgs = args
+        selectedLaunchConfigName = nil
+    }
+
+    public func setAutoReload(_ on: Bool) {
+        overrides.autoReload = nil
+        autoReload = on
+    }
+
+    /// Opens another project from the recents list; command-line overrides belonged to the first one.
+    public func switchProject(path: String) {
+        overrides = SessionOverrides()
+        selectProject(path: path)
     }
 
     // MARK: Editor
@@ -283,6 +341,25 @@ public final class Session {
         deviceRefreshTask = task
         await task.value
         deviceRefreshTask = nil
+    }
+
+    /// Terminal start: waits for the device list, resolves `--device`, and runs when the device is known.
+    public func startup(autoRun: Bool) async -> StartupOutcome {
+        guard project != nil else { return .idle }
+        await refreshDevices()
+        if let query = overrides.deviceQuery {
+            guard case .one(let device) = DeviceMatcher.match(query: query, in: devices) else { return .needsDevice(filter: query) }
+            selectedDeviceId = device.id
+        } else {
+            let configDevice = selectedLaunchConfigName.flatMap { name in launchConfigs.first { $0.name == name }?.deviceId }
+            let remembered = [deviceAtOpen, configDevice].compactMap { $0 }
+            guard let id = selectedDeviceId, remembered.contains(id), devices.contains(where: { $0.id == id }) else {
+                return .needsDevice(filter: "")
+            }
+        }
+        guard autoRun, canRun else { return .idle }
+        await run()
+        return .started
     }
 
     private func loadDevices() async {
