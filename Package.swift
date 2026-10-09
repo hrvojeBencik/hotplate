@@ -6,8 +6,10 @@ let package = Package(
     platforms: [.macOS(.v14)],
     targets: [
         .target(name: "HotplateCore"),
+        .target(name: "HotplateTUI", dependencies: ["HotplateCore"]),
         .executableTarget(name: "Hotplate", dependencies: ["HotplateCore"]),
         .target(name: "HotplateTestSupport", dependencies: ["HotplateCore"], path: "Tests/HotplateTestSupport"),
         .testTarget(name: "HotplateCoreTests", dependencies: ["HotplateCore", "HotplateTestSupport"]),
+        .testTarget(name: "HotplateTUITests", dependencies: ["HotplateTUI", "HotplateCore", "HotplateTestSupport"]),
     ]
 )
