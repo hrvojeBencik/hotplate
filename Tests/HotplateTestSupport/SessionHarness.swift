@@ -122,6 +122,16 @@ public enum TestProject {
         return root.resolvingSymlinksInPath().path
     }
 
+    /// Dev is pinned to the device `chrome`; Prod has no device.
+    public static let deviceLaunchJSON = """
+    {
+      "configurations": [
+        { "name": "Dev", "request": "launch", "type": "dart", "deviceId": "chrome", "args": ["--flavor", "dev"] },
+        { "name": "Prod", "request": "launch", "type": "dart", "args": ["--flavor", "prod"] }
+      ]
+    }
+    """
+
     public static let devAndProdLaunchJSON = """
     {
       "configurations": [

@@ -156,4 +156,67 @@ final class SessionOverridesTests: XCTestCase {
         let outcome = await s.startup(autoRun: true)
         XCTAssertEqual(outcome, .idle)
     }
+
+    // MARK: Memory rule: command-line options are never saved
+
+    private func deviceProject(_ h: SessionHarness, savedDevice: String?, config: String? = "Prod") throws -> (String, ProjectStore) {
+        let path = try TestProject.make(launchJSON: TestProject.deviceLaunchJSON)
+        let store = h.makeStore()
+        store.update(Project(path: path, name: "demo", lastDeviceId: savedDevice, extraArgs: "--flavor prod", autoReload: true,
+                             launchConfigName: config))
+        return (path, store)
+    }
+
+    func testConfigOverrideDeviceIsNotSavedEvenAfterRun() async throws {
+        let h = SessionHarness(devices: threeDevices)
+        let (path, store) = try deviceProject(h, savedDevice: "macos")
+        let s = h.makeSession(store: store)
+        s.overrides = SessionOverrides(configName: "Dev")
+        s.selectProject(path: path)
+        let outcome = await s.startup(autoRun: true)
+        XCTAssertEqual(outcome, .started)
+        XCTAssertEqual(h.lastDaemon?.config.deviceId, "chrome")
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "macos")
+        XCTAssertEqual(saved(h, path)?.launchConfigName, "Prod")
+        s.chooseDevice(id: "ios1")
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "ios1")
+    }
+
+    func testDeviceOverrideBeatsConfigDevice() async throws {
+        let h = SessionHarness(devices: threeDevices)
+        let (path, store) = try deviceProject(h, savedDevice: "macos", config: "Dev")
+        let s = h.makeSession(store: store)
+        s.overrides = SessionOverrides(deviceQuery: "ios1")
+        s.selectProject(path: path)
+        let outcome = await s.startup(autoRun: true)
+        XCTAssertEqual(outcome, .started)
+        XCTAssertEqual(h.lastDaemon?.config.deviceId, "ios1")
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "macos")
+    }
+
+    func testFallbackDeviceIsNotRemembered() async throws {
+        let h = SessionHarness(devices: threeDevices)
+        let path = try TestProject.make()
+        let store = h.makeStore()
+        let s = h.makeSession(store: store)
+        s.selectProject(path: path)
+        let first = await s.startup(autoRun: true)
+        XCTAssertEqual(first, .needsDevice(filter: ""))
+        XCTAssertNil(saved(h, path)?.lastDeviceId)
+
+        let s2 = h.makeSession(store: h.makeStore())
+        s2.selectProject(path: path)
+        let second = await s2.startup(autoRun: true)
+        XCTAssertEqual(second, .needsDevice(filter: ""))
+        XCTAssertTrue(h.daemons.isEmpty)
+    }
+
+    func testGoneDeviceStaysSavedAfterStartup() async throws {
+        let h = SessionHarness(devices: [.fake("ios1", "iPhone 16 Pro")])
+        let (path, store) = try savedProject(h)
+        let s = h.makeSession(store: store)
+        s.selectProject(path: path)
+        _ = await s.startup(autoRun: true)
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "macos")
+    }
 }

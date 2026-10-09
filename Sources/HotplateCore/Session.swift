@@ -36,6 +36,8 @@ public final class Session {
     /// The saved device when the project was opened. The device refresh may pick and save a fallback,
     /// so `startup` must not read `project.lastDeviceId` to decide whether the device was remembered.
     @ObservationIgnored private var deviceAtOpen: String?
+    /// True while the selected device came from a launch config that is only overridden for this session.
+    @ObservationIgnored private var deviceIsSessionOnly = false
 
     @ObservationIgnored private let deps: SessionDependencies
     @ObservationIgnored private let flutterPathOverride: String?
@@ -131,6 +133,7 @@ public final class Session {
                 selectedLaunchConfigName = nil
             }
             deviceAtOpen = p.lastDeviceId
+            deviceIsSessionOnly = false
             applyOverrides()
             Task { await refreshDevices() }
         } catch {
@@ -147,7 +150,7 @@ public final class Session {
     private func persistProjectSettings() {
         guard !suppressPersist, var p = project else { return }
         // An overridden field keeps its saved value; `project` always holds the saved values.
-        if overrides.deviceQuery == nil { p.lastDeviceId = selectedDeviceId }
+        if overrides.deviceQuery == nil, !deviceIsSessionOnly { p.lastDeviceId = selectedDeviceId }
         if overrides.configName == nil, overrides.args == nil {
             p.extraArgs = extraArgs
             p.launchConfigName = selectedLaunchConfigName
@@ -177,6 +180,7 @@ public final class Session {
 
     public func chooseDevice(id: String) {
         overrides.deviceQuery = nil
+        deviceIsSessionOnly = false
         selectedDeviceId = id
     }
 
@@ -199,6 +203,7 @@ public final class Session {
 
     /// Opens another project from the recents list; command-line overrides belonged to the first one.
     public func switchProject(path: String) {
+        if isRunning { Task { await stop(); self.switchProject(path: path) }; return }
         overrides = SessionOverrides()
         selectProject(path: path)
     }
@@ -312,11 +317,18 @@ public final class Session {
         extraArgs = ArgumentSplitter.join(cfg.flutterRunArguments)
         applyingLaunchConfig = false
         selectedLaunchConfigName = name
-        if let dev = cfg.deviceId, devices.contains(where: { $0.id == dev }) { selectedDeviceId = dev }
+        if let dev = cfg.deviceId { adoptConfigDevice(dev) }
         log("Launch config \"\(name)\" → \(extraArgs.isEmpty ? "(no extra args)" : extraArgs)", .info)
         if let mode = cfg.flutterMode?.lowercased(), mode != "debug" {
             log("Note: \(mode) mode does not support hot reload.", .warning)
         }
+    }
+
+    /// A config's device never replaces a `--device` choice; under an overridden config it is not saved.
+    private func adoptConfigDevice(_ id: String) {
+        guard overrides.deviceQuery == nil, devices.contains(where: { $0.id == id }) else { return }
+        if overrides.configName != nil || overrides.args != nil { deviceIsSessionOnly = true }
+        selectedDeviceId = id
     }
 
     /// Re-reads launch.json so edits made in the editor are picked up before a run.
@@ -369,12 +381,15 @@ public final class Session {
         do {
             let list = try await deps.listDevices(flutterPath, deps.environment(flutterPath), project?.path)
             devices = list
-            if let name = selectedLaunchConfigName, let dev = launchConfigs.first(where: { $0.name == name })?.deviceId,
-               list.contains(where: { $0.id == dev }) {
-                selectedDeviceId = dev
+            if let name = selectedLaunchConfigName, let dev = launchConfigs.first(where: { $0.name == name })?.deviceId {
+                adoptConfigDevice(dev)
             }
             if selectedDeviceId == nil || !list.contains(where: { $0.id == selectedDeviceId }) {
+                // A fallback is only a suggestion for this session; it must not become the remembered device.
+                let wasSuppressed = suppressPersist
+                suppressPersist = true
                 selectedDeviceId = list.first?.id
+                suppressPersist = wasSuppressed
             }
             if list.isEmpty { deviceError = "No devices found. Start a simulator or connect a device, then refresh." }
             log("Devices: \(list.isEmpty ? "none" : list.map(\.displayName).joined(separator: ", "))", .info)
