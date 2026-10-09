@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 — unreleased
+## 1.1.0 — 2026-10-09
 
 - `hotplate` command: the whole app in your terminal. Run, hot reload on save, devices, launch.json configurations,
   run arguments and a log whose file links open your editor at the line, all from the keyboard (mouse works too).
