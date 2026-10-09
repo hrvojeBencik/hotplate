@@ -1,4 +1,5 @@
 import SwiftUI
+import HotplateCore
 
 /// Visual tokens. Flutter blue is spent in two places only: the Run button and the status pill.
 enum Theme {

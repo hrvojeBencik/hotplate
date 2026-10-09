@@ -7,6 +7,7 @@ let package = Package(
     targets: [
         .target(name: "HotplateCore"),
         .executableTarget(name: "Hotplate", dependencies: ["HotplateCore"]),
-        .testTarget(name: "HotplateCoreTests", dependencies: ["HotplateCore"]),
+        .target(name: "HotplateTestSupport", dependencies: ["HotplateCore"], path: "Tests/HotplateTestSupport"),
+        .testTarget(name: "HotplateCoreTests", dependencies: ["HotplateCore", "HotplateTestSupport"]),
     ]
 )

@@ -17,6 +17,8 @@ public enum DaemonEvent: Sendable {
 public struct RestartResult: Sendable {
     public let code: Int
     public let message: String
+
+    public init(code: Int, message: String) { self.code = code; self.message = message }
 }
 
 /// Owns one `flutter run --machine` process and speaks its JSON protocol.
@@ -141,6 +143,12 @@ public final class FlutterDaemon: @unchecked Sendable {
         if process.isRunning { kill(process.processIdentifier, SIGKILL) }
         // Wait for the termination handler so callers observe a consistent state.
         for _ in 0..<50 where !hasExited { try? await Task.sleep(nanoseconds: 50_000_000) }
+    }
+
+    /// Kills the process right away without asking the app to stop (second Ctrl+C in the terminal).
+    public func terminate() {
+        lock.lock(); stopRequested = true; lock.unlock()
+        if process.isRunning { process.terminate() }
     }
 
     private var hasExited: Bool { lock.lock(); defer { lock.unlock() }; return exited }

@@ -1,4 +1,5 @@
 import SwiftUI
+import HotplateCore
 
 /// The menu bar popover: a compact remote control for the running session.
 struct MenuBarPanel: View {
