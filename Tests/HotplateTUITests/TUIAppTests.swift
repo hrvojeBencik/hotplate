@@ -119,6 +119,8 @@ final class TUIAppTests: XCTestCase {
         app.handle(key(.ctrl("c")))
         XCTAssertEqual(c.exitCodes.first, 130)
         XCTAssertEqual(h.lastDaemon?.terminated, true)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(c.exitCodes, [130])
     }
 
     func testPasteInNormalModeTriggersNothing() async throws {
@@ -219,5 +221,66 @@ final class TUIAppTests: XCTestCase {
         XCTAssertNotEqual(screen(app), before)
         app.handle(key(.char("x")))
         XCTAssertEqual(app.mode, .normal)
+    }
+
+    func testStartupProjectPickerIsDrawnImmediately() async throws {
+        let h = SessionHarness()
+        let store = h.makeStore()
+        store.touch(Project(path: try TestProject.make(), name: "demo"))
+        let s = h.makeSession(store: store)
+        let c = Captured()
+        let app = TUIApp(session: s, size: TerminalSize(width: 100, height: 30), output: { c.output += $0 },
+                         copy: { _ in }, exit: { _ in }, now: { c.now })
+        await app.start(autoRun: true)
+        XCTAssertEqual(app.mode, .picker)
+        XCTAssertTrue(c.output.contains("Recent projects"))
+    }
+
+    func testPasteWithCarriageReturnBecomesSpace() throws {
+        let h = SessionHarness()
+        let (app, s, _) = try makeApp(h)
+        app.handle(key(.char("a")))
+        app.handle(key(.ctrl("u")))
+        app.handle(.paste("--flavor\rdev"))
+        app.handle(key(.enter))
+        XCTAssertEqual(s.extraArgs, "--flavor dev")
+    }
+
+    func testClosingDevicePickerWithoutChoosingDoesNotLeakRunIntent() async throws {
+        let h = SessionHarness()
+        let (app, _, _) = try makeApp(h)
+        await app.start(autoRun: true)
+        XCTAssertEqual(app.picker?.kind, .device)
+        for ch in "zzz" { app.handle(key(.char(ch))) }
+        app.handle(key(.enter))
+        XCTAssertEqual(app.mode, .normal)
+        app.handle(key(.char("d")))
+        app.handle(key(.enter))
+        try await Task.sleep(nanoseconds: 150_000_000)
+        XCTAssertTrue(h.daemons.isEmpty)
+    }
+
+    func testPressingQTwiceDoesNotForceKill() async throws {
+        let h = SessionHarness()
+        let (app, _, c) = try makeApp(h, savedDevice: "ios1")
+        await app.start(autoRun: true)
+        app.handle(key(.char("q")))
+        c.now = c.now.addingTimeInterval(1)
+        app.handle(key(.char("q")))
+        let exited = await waitUntil { !c.exitCodes.isEmpty }
+        XCTAssertTrue(exited)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(c.exitCodes, [0])
+        XCTAssertNotEqual(h.lastDaemon?.terminated, true)
+    }
+
+    func testMouseIgnoredBelowMinimumSize() throws {
+        let h = SessionHarness()
+        let (app, s, _) = try makeApp(h)
+        s.log("Error at lib/missing.dart:3", .error)
+        _ = app.compose()
+        app.resize(to: TerminalSize(width: 40, height: 10))
+        app.handle(.mouse(MouseEvent(button: .left, x: LogViewport.gutter + 10, y: 2, pressed: true)))
+        XCTAssertNil(app.viewport.selectedLineId)
     }
 }

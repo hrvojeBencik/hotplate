@@ -26,6 +26,7 @@ public final class TUIApp {
     private var startAfterProjectPick: Bool?
     private var quitRequestedAt: Date?
     private var quitting = false
+    private var forceQuitting = false
     private var helpScroll = 0
 
     public init(session: Session, size: TerminalSize, output: @escaping (String) -> Void,
@@ -40,6 +41,7 @@ public final class TUIApp {
         guard session.project != nil else {
             startAfterProjectPick = autoRun
             openPicker(.project)
+            render()
             return
         }
         await runStartup(autoRun: autoRun)
@@ -57,7 +59,8 @@ public final class TUIApp {
 
     public func handle(_ event: InputEvent) {
         defer { scheduleRender() }
-        if event == .key(.ctrl("c")) { quit(); return }
+        if event == .key(.ctrl("c")) { quit(fromInterrupt: true); return }
+        if case .mouse = event, size.width < Layout.minWidth || size.height < Layout.minHeight { return }
         switch mode {
         case .help:
             handleHelp(event)
@@ -88,7 +91,7 @@ public final class TUIApp {
         case .reload: Task { await session.hotReload() }
         case .restart: Task { await session.hotRestart() }
         case .stop: Task { await session.stop() }
-        case .quit: quit()
+        case .quit: quit(fromInterrupt: false)
         case .devices: openPicker(.device)
         case .configs: openPicker(.config)
         case .editArgs: input = TextInput(text: session.extraArgs); mode = .input(.args)
@@ -163,7 +166,7 @@ public final class TUIApp {
     private func handleInput(_ event: InputEvent, kind: InputKind) {
         switch event {
         case .paste(let s):
-            input.insert(s.replacingOccurrences(of: "\r\n", with: " ").replacingOccurrences(of: "\n", with: " "))
+            input.insert(String(s.map { $0.isNewline ? " " : $0 }))
         case .key(let key):
             switch input.handle(key) {
             case .editing: break
@@ -192,6 +195,7 @@ public final class TUIApp {
 
     private func closePicker() {
         picker = nil
+        runAfterDevicePick = false
         mode = .normal
     }
 
@@ -203,8 +207,9 @@ public final class TUIApp {
             closePicker()
             return
         case .key(.enter):
+            let runAfter = runAfterDevicePick
             closePicker()
-            if let item = p.selected { choose(item, in: p.kind) }
+            if let item = p.selected { choose(item, in: p.kind, runAfter: runAfter) }
             return
         case .key(.up), .key(.ctrl("p")): p.move(by: -1)
         case .key(.down), .key(.ctrl("n")), .key(.tab): p.move(by: 1)
@@ -219,8 +224,9 @@ public final class TUIApp {
             case .left where m.pressed:
                 if let index = p.itemIndex(atX: m.x, y: m.y, in: size) {
                     p.select(index: index)
+                    let runAfter = runAfterDevicePick
                     closePicker()
-                    if let item = p.selected { choose(item, in: p.kind) }
+                    if let item = p.selected { choose(item, in: p.kind, runAfter: runAfter) }
                     return
                 }
                 if !p.contains(x: m.x, y: m.y, in: size) { runAfterDevicePick = false; closePicker(); return }
@@ -231,12 +237,11 @@ public final class TUIApp {
         picker = p
     }
 
-    private func choose(_ item: PickerItem, in kind: PickerKind) {
+    private func choose(_ item: PickerItem, in kind: PickerKind, runAfter: Bool) {
         switch kind {
         case .device:
             session.chooseDevice(id: item.id)
-            if runAfterDevicePick {
-                runAfterDevicePick = false
+            if runAfter {
                 Task { await session.run() }
             }
         case .config:
@@ -288,20 +293,24 @@ public final class TUIApp {
 
     // MARK: Quit
 
-    /// `q`, Ctrl+C or a signal: stop flutter cleanly, then exit. A second request within 2 s kills flutter.
-    public func quit() {
-        let t = now()
-        if let first = quitRequestedAt, t.timeIntervalSince(first) <= 2 {
-            session.forceQuit()
-            exit(130)
-            return
+    /// `q`, Ctrl+C or a signal: stop flutter cleanly, then exit. A second interrupt (Ctrl+C or signal) within 2 s
+    /// kills flutter; pressing `q` repeatedly never escalates.
+    public func quit(fromInterrupt: Bool = true) {
+        if fromInterrupt {
+            let t = now()
+            if let first = quitRequestedAt, t.timeIntervalSince(first) <= 2 {
+                forceQuitting = true
+                session.forceQuit()
+                exit(130)
+                return
+            }
+            quitRequestedAt = t
         }
-        quitRequestedAt = t
         guard !quitting else { return }
         quitting = true
         Task {
             await session.shutdown()
-            exit(0)
+            if !forceQuitting { exit(0) }
         }
     }
 
