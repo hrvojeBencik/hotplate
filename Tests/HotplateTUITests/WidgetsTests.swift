@@ -86,4 +86,37 @@ final class WidgetsTests: XCTestCase {
         XCTAssertTrue(row.contains("…"), "Truncated text should have ellipsis")
         XCTAssertLessThanOrEqual(CharWidth.of(row.trimmingCharacters(in: .whitespaces)), 60)
     }
+
+    func testStatusBarAt60WithFlutterMissingAndAutoReload() {
+        var buf = ScreenBuffer(width: 60, height: 1)
+        StatusBar.draw(StatusInfo(project: "my_long_project_name", state: .idle, statusText: "Idle",
+                                  flutterMissing: true, device: "Pixel 8 Pro API 34 emulator-5554",
+                                  config: "development", autoReload: true), into: &buf)
+        let row = buf.text(row: 0)
+        XCTAssertTrue(row.contains("● flutter not found"), "Flutter missing should be visible")
+        XCTAssertTrue(row.contains("↻ auto"), "Auto reload should be visible")
+        XCTAssertLessThanOrEqual(CharWidth.of(row.trimmingCharacters(in: .whitespaces)), 60)
+    }
+
+    func testStatusBarAt60WithLongStatusText() {
+        var buf = ScreenBuffer(width: 60, height: 1)
+        StatusBar.draw(StatusInfo(project: "my_long_project_name", state: .restarting, statusText: "Hot restarting…",
+                                  flutterMissing: false, device: "Pixel 8 Pro API 34 emulator-5554",
+                                  config: "development", autoReload: true), into: &buf)
+        let row = buf.text(row: 0)
+        XCTAssertTrue(row.contains("● Hot restarting"), "Status should be visible")
+        XCTAssertTrue(row.contains("↻ auto"), "Auto reload should be visible")
+        XCTAssertLessThanOrEqual(CharWidth.of(row.trimmingCharacters(in: .whitespaces)), 60)
+    }
+
+    func testStatusBarAt30ColumnsDoesntCrash() {
+        var buf = ScreenBuffer(width: 30, height: 1)
+        StatusBar.draw(StatusInfo(project: "my_long_project_name", state: .running, statusText: "Running",
+                                  flutterMissing: false, device: "Pixel 8 Pro API 34 emulator-5554",
+                                  config: "development", autoReload: true), into: &buf)
+        let row = buf.text(row: 0)
+        // Should still contain status indicator even if very narrow
+        XCTAssertTrue(row.contains("●"), "Status indicator should be present")
+        XCTAssertLessThanOrEqual(CharWidth.of(row.trimmingCharacters(in: .whitespaces)), 30)
+    }
 }

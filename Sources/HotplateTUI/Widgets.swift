@@ -28,50 +28,53 @@ enum StatusBar {
         if info.autoReload {
             rightParts.append("↻ auto")
         }
-        let rightText = rightParts.joined(separator: "  ")
-        let rightWidth = CharWidth.of(rightText)
+        var rightText = rightParts.joined(separator: "  ")
+        var rightWidth = CharWidth.of(rightText)
 
-        // Draw right part right-aligned
-        let rightX = max(1, width - rightWidth - 1)
-        if rightX > 1 {
-            var x = rightX
-            x += buf.put(statusText, x: x, y: 0, style: info.flutterMissing ?
-                Style(fg: .red, bold: true) : Style(fg: color(for: info.state), bold: true))
-            if info.autoReload {
-                x += buf.put("  ", x: x, y: 0)
-                buf.put("↻ auto", x: x, y: 0, style: Style(fg: .cyan))
-            }
+        // Truncate right part if it doesn't fit
+        if rightWidth > width - 2 {
+            rightText = CharWidth.truncate(rightText, to: width - 2)
+            rightWidth = CharWidth.of(rightText)
         }
 
-        // Build and draw left part, truncating as needed
-        let availableWidth = rightX - 3
+        // Position right part: right-align or place at available position
+        let rightX = max(1, width - rightWidth - 1)
+
+        // Draw right part
+        if rightX > 1 {
+            buf.put(rightText, x: rightX, y: 0, style: info.flutterMissing ?
+                Style(fg: .red, bold: true) : Style(fg: color(for: info.state), bold: true))
+        }
+
+        // Calculate available width for left part (keep 2-column gap)
+        let maxLeftWidth = max(0, rightX - 2 - 1)
+
+        // Build left part with smart truncation
         var device = info.device ?? "no device"
         var config = info.config ?? "custom"
         var project = info.project ?? "no project"
 
-        let minColumnWidth = 6
-        while CharWidth.of("Hotplate · \(project)   \(device)   cfg: \(config)") > availableWidth &&
-              (CharWidth.of(device) > minColumnWidth ||
-               CharWidth.of(config) > minColumnWidth ||
-               CharWidth.of(project) > minColumnWidth) {
-            if CharWidth.of(device) > minColumnWidth {
-                device = CharWidth.truncate(device, to: CharWidth.of(device) - 1)
-            } else if CharWidth.of(config) > minColumnWidth {
-                config = CharWidth.truncate(config, to: CharWidth.of(config) - 1)
-            } else if CharWidth.of(project) > minColumnWidth {
-                project = CharWidth.truncate(project, to: CharWidth.of(project) - 1)
+        // Shrink segments intelligently: device → config → project
+        while CharWidth.of("Hotplate · \(project)   \(device)   cfg: \(config)") > maxLeftWidth && maxLeftWidth > 0 {
+            if CharWidth.of(device) > 1 {
+                device = CharWidth.truncate(device, to: max(1, CharWidth.of(device) - 1))
+            } else if CharWidth.of(config) > 1 {
+                config = CharWidth.truncate(config, to: max(1, CharWidth.of(config) - 1))
+            } else if CharWidth.of(project) > 1 {
+                project = CharWidth.truncate(project, to: max(1, CharWidth.of(project) - 1))
             } else {
                 break
             }
         }
 
+        // Draw left part with width clamping to prevent overlap
         var x = 1
-        x += buf.put("Hotplate", x: x, y: 0, style: Style(bold: true))
-        x += buf.put(" · \(project)", x: x, y: 0)
+        x += buf.put("Hotplate", x: x, y: 0, style: Style(bold: true), maxWidth: max(0, maxLeftWidth - x + 1))
+        x += buf.put(" · \(project)", x: x, y: 0, maxWidth: max(0, maxLeftWidth - x + 1))
         x += 3
-        x += buf.put(device, x: x, y: 0)
+        x += buf.put(device, x: x, y: 0, maxWidth: max(0, maxLeftWidth - x + 1))
         x += 3
-        buf.put("cfg: \(config)", x: x, y: 0, style: Style(dim: true))
+        buf.put("cfg: \(config)", x: x, y: 0, style: Style(dim: true), maxWidth: max(0, maxLeftWidth - x + 1))
     }
 
     static func color(for state: SessionState) -> TermColor {
@@ -165,7 +168,7 @@ enum HelpOverlay {
         // Draw hint at bottom
         let hintText = maxScroll > 0 ? " ↑↓ scroll · any other key closes " : " any key closes "
         let hintX = (x0 + w) - CharWidth.of(hintText) - 1
-        buf.put(hintText, x: max(x0 + 2, hintX), y: y0 + h - 1, style: Style(dim: true))
+        buf.put(hintText, x: max(x0 + 2, hintX), y: y0 + h - 1, style: Style(dim: true), maxWidth: w - 4)
     }
 }
 
