@@ -43,6 +43,15 @@ final class InputDecoderTests: XCTestCase {
         XCTAssertEqual(d.feed([0xBE]), [.key(.char("ž"))])
     }
 
+    func testInvalidUTF8IsDropped() {
+        var d = InputDecoder()
+        XCTAssertEqual(d.feed([0x80]), [])
+        d = InputDecoder()
+        XCTAssertEqual(d.feed([0xFF]), [])
+        d = InputDecoder()
+        XCTAssertEqual(d.feed([0x80, 0x71]), [.key(.char("q"))])
+    }
+
     func testSGRMouse() {
         XCTAssertEqual(decode("\u{1B}[<0;10;5M"), [.mouse(MouseEvent(button: .left, x: 9, y: 4, pressed: true))])
         XCTAssertEqual(decode("\u{1B}[<0;10;5m"), [.mouse(MouseEvent(button: .left, x: 9, y: 4, pressed: false))])

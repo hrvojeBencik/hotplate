@@ -1,3 +1,5 @@
+import Foundation
+
 /// Turns raw terminal bytes into key, mouse and paste events. Incomplete sequences wait for the next `feed`.
 public struct InputDecoder {
     private static let pasteEnd: [UInt8] = Array("\u{1B}[201~".utf8)
@@ -129,8 +131,7 @@ public struct InputDecoder {
         let b = buffer[0]
         let length = b < 0x80 ? 1 : b >= 0xF0 ? 4 : b >= 0xE0 ? 3 : b >= 0xC0 ? 2 : 1
         guard buffer.count >= length else { return nil }
-        let str = String(decoding: Array(buffer[0..<length]), as: UTF8.self)
-        guard let c = str.first else { return (nil, length) }
+        guard let c = String(bytes: Array(buffer[0..<length]), encoding: .utf8)?.first else { return (nil, length) }
         return (.key(.char(c)), length)
     }
 
