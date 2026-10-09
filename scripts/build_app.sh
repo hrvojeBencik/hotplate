@@ -69,8 +69,9 @@ if [ -n "$IDENTITY" ]; then
              --identifier com.hrvojebencik.hotplate.cli --sign "$IDENTITY" "$HELPER"
     codesign --force --options runtime --timestamp --entitlements Resources/Hotplate.entitlements \
              --sign "$IDENTITY" "$APP"
-    if codesign --verify --strict "$HELPER" 2>/dev/null && codesign -dvv "$HELPER" 2>&1 | grep -q "^Timestamp=" \
-       && codesign --verify --deep --strict "$APP" 2>/dev/null && codesign -dvv "$APP" 2>&1 | grep -q "^Timestamp="; then break; fi
+    # grep without -q reads all of codesign's output; -q exits early, codesign gets SIGPIPE and pipefail reports failure.
+    if codesign --verify --strict "$HELPER" 2>/dev/null && codesign -dvv "$HELPER" 2>&1 | grep "^Timestamp=" >/dev/null \
+       && codesign --verify --deep --strict "$APP" 2>/dev/null && codesign -dvv "$APP" 2>&1 | grep "^Timestamp=" >/dev/null; then break; fi
     echo "  signing attempt $attempt produced no timestamp, retrying in 5s…"; sleep 5
   done
   SIGNED="developer-id"
