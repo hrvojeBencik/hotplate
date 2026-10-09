@@ -107,11 +107,16 @@ final class SessionTests: XCTestCase {
 
     func testConcurrentDeviceRefreshesShareOneLoad() async throws {
         let h = SessionHarness()
+        h.listDevicesDelay = 50_000_000
         let s = h.makeSession()
         s.selectProject(path: try TestProject.make())
+        // selectProject starts its own refresh; wait until it is in flight, then add two more callers.
+        let started = await waitUntil { h.listDevicesCalls == 1 }
+        XCTAssertTrue(started)
         async let a: Void = s.refreshDevices()
         async let b: Void = s.refreshDevices()
         _ = await (a, b)
+        XCTAssertEqual(h.listDevicesCalls, 1)
         XCTAssertEqual(s.devices.map(\.id), ["ios1", "chrome"])
         XCTAssertFalse(s.isLoadingDevices)
     }

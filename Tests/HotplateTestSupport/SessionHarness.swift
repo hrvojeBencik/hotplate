@@ -64,6 +64,9 @@ public final class SessionHarness: @unchecked Sendable {
     public private(set) var watchers: [FakeWatcher] = []
     public let suiteName = "hotplate.tests.\(UUID().uuidString)"
     public var defaults: UserDefaults { UserDefaults(suiteName: suiteName)! }
+    public private(set) var listDevicesCalls = 0
+    /// How long each device listing takes, in nanoseconds.
+    public var listDevicesDelay: UInt64 = 0
     public var lastDaemon: FakeDaemon? { daemons.last }
 
     public init(devices: [FlutterDevice] = [.fake("ios1", "iPhone 16 Pro"), .fake("chrome", "Chrome", platform: "web-javascript")]) {
@@ -74,14 +77,20 @@ public final class SessionHarness: @unchecked Sendable {
 
     public var dependencies: SessionDependencies {
         SessionDependencies(
-            locateFlutter: { [unowned self] _ in self.flutterPath },
+            locateFlutter: { [weak self] _ in self?.flutterPath },
             environment: { _ in ["PATH": "/usr/bin:/bin"] },
-            listDevices: { [unowned self] _, _, _ in self.devices },
-            makeDaemon: { [unowned self] config in
-                let d = FakeDaemon(config: config); self.daemons.append(d); return d
+            listDevices: { [weak self] _, _, _ in
+                guard let self else { return [] }
+                self.listDevicesCalls += 1
+                let delay = self.listDevicesDelay
+                if delay > 0 { try await Task.sleep(nanoseconds: delay) }
+                return self.devices
             },
-            startWatcher: { [unowned self] path, onChange in
-                let w = FakeWatcher(path: path, onChange: onChange); self.watchers.append(w); return w
+            makeDaemon: { [weak self] config in
+                let d = FakeDaemon(config: config); self?.daemons.append(d); return d
+            },
+            startWatcher: { [weak self] path, onChange in
+                let w = FakeWatcher(path: path, onChange: onChange); self?.watchers.append(w); return w
             })
     }
 
