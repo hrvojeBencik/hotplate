@@ -28,3 +28,6 @@ EN: How to run
 5. If flutter is not found: Settings (Cmd+,) -> enter the path to flutter/bin/flutter.
 
 Source and issues: https://github.com/hrvojeBencik/hotplate
+
+Terminal: Hotplate → Install Command Line Tool… adds the `hotplate` command.
+Run it inside a Flutter project; press ? for shortcuts.

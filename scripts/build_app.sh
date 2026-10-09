@@ -17,27 +17,37 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resour
 APP="dist/Hotplate.app"
 ZIP="dist/Hotplate-$VERSION.zip"
 DMG="dist/Hotplate-$VERSION.dmg"
+CORE_VERSION="$(sed -n 's/.*static let current = "\(.*\)".*/\1/p' Sources/HotplateCore/HotplateVersion.swift)"
+if [ "$CORE_VERSION" != "$VERSION" ]; then
+  echo "error: HotplateVersion.current ($CORE_VERSION) does not match Info.plist ($VERSION)" >&2; exit 1
+fi
+HELPER="$APP/Contents/Helpers/hotplate"
 
-if [ "${SKIP_BUILD:-0}" = "1" ] && [ -x "$APP/Contents/MacOS/Hotplate" ]; then
+if [ "${SKIP_BUILD:-0}" = "1" ] && [ -x "$APP/Contents/MacOS/Hotplate" ] && [ -x "$HELPER" ]; then
   echo "▸ SKIP_BUILD=1: reusing $APP"
-  BIN="$APP/Contents/MacOS/Hotplate"
-  cp "$BIN" /tmp/hotplate-reuse.bin && rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" && mv /tmp/hotplate-reuse.bin "$BIN"
+  cp "$APP/Contents/MacOS/Hotplate" /tmp/hotplate-reuse.bin && cp "$HELPER" /tmp/hotplate-cli-reuse.bin
+  rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
+  mv /tmp/hotplate-reuse.bin "$APP/Contents/MacOS/Hotplate" && mv /tmp/hotplate-cli-reuse.bin "$HELPER"
 else
-echo "▸ Building release binary (v$VERSION)…"
+echo "▸ Building release binaries (v$VERSION)…"
 # Ask SwiftPM where the products land: the directory differs between toolchains.
 if swift build -c release --arch arm64 --arch x86_64 >/tmp/hotplate-build.log 2>&1; then
-  BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/Hotplate"
+  BIN_DIR="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)"
 else
   echo "  universal build failed (see /tmp/hotplate-build.log), falling back to native arch"
   swift build -c release
-  BIN="$(swift build -c release --show-bin-path)/Hotplate"
+  BIN_DIR="$(swift build -c release --show-bin-path)"
 fi
-if [ ! -f "$BIN" ] || [ -n "$(find Sources -newer "$BIN" -name '*.swift' | head -1)" ]; then
-  echo "error: $BIN is missing or older than the sources" >&2; exit 1
-fi
-echo "  binary: $BIN"
-rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+BIN="$BIN_DIR/Hotplate"; CLI_BIN="$BIN_DIR/hotplate-cli"
+for b in "$BIN" "$CLI_BIN"; do
+  if [ ! -f "$b" ] || [ -n "$(find Sources -newer "$b" -name '*.swift' | head -1)" ]; then
+    echo "error: $b is missing or older than the sources" >&2; exit 1
+  fi
+done
+echo "  binaries: $BIN, $CLI_BIN"
+rm -rf dist && mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Hotplate"
+cp "$CLI_BIN" "$HELPER"
 fi
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
@@ -54,18 +64,24 @@ if [ -n "$IDENTITY" ]; then
   echo "▸ Signing with Developer ID: $IDENTITY"
   # Apple's timestamp server is occasionally unreachable; a signature without a timestamp fails notarization, so retry.
   for attempt in 1 2 3 4 5; do
+    # The nested tool is signed first; signing the app seals it.
+    codesign --force --options runtime --timestamp --entitlements Resources/Hotplate.entitlements \
+             --identifier com.hrvojebencik.hotplate.cli --sign "$IDENTITY" "$HELPER"
     codesign --force --options runtime --timestamp --entitlements Resources/Hotplate.entitlements \
              --sign "$IDENTITY" "$APP"
-    if codesign --verify --deep --strict "$APP" 2>/dev/null && codesign -dvv "$APP" 2>&1 | grep -q "^Timestamp="; then break; fi
+    if codesign --verify --strict "$HELPER" 2>/dev/null && codesign -dvv "$HELPER" 2>&1 | grep -q "^Timestamp=" \
+       && codesign --verify --deep --strict "$APP" 2>/dev/null && codesign -dvv "$APP" 2>&1 | grep -q "^Timestamp="; then break; fi
     echo "  signing attempt $attempt produced no timestamp, retrying in 5s…"; sleep 5
   done
   SIGNED="developer-id"
 else
   echo "▸ Signing ad-hoc (no Developer ID certificate found)"
+  codesign --force --identifier com.hrvojebencik.hotplate.cli --sign - "$HELPER"
   codesign --force --sign - "$APP"
   SIGNED="ad-hoc"
 fi
 codesign --verify --deep --strict "$APP"
+codesign --verify --strict "$HELPER"
 
 # --- Packaging -----------------------------------------------------------------------------
 echo "▸ Packaging…"

@@ -56,6 +56,32 @@ System Settings › Privacy & Security. To ship without warnings you need the Ap
 3. Build with `NOTARY_PROFILE=HotplateNotary scripts/build_app.sh`. The script notarizes the DMG, staples
    the ticket to both the DMG and the app, and re-zips.
 
+## Terminal
+
+`hotplate` runs the same session in your terminal, so you never have to switch to the Hotplate window.
+
+```bash
+hotplate                      # the Flutter project in this folder (or a parent)
+hotplate ~/code/my_app -d iphone -c Dev
+hotplate -- --flavor dev --dart-define=API=staging
+```
+
+Install it with Hotplate → Install Command Line Tool… (Homebrew does it for you). Options apply to that run only;
+choices you make inside hotplate are remembered per project, shared with the app.
+
+| Key | Action | Key | Action |
+|---|---|---|---|
+| `⏎` | Run / open selected file | `o` `[` `]` | Newest error, previous/next file link |
+| `r` / `R` | Hot reload / restart | `/` `n` `N` | Search the log |
+| `s` | Stop | `y` / `Y` | Copy line / whole log |
+| `q` | Stop and quit | `j` `k` `g` `G` `f` | Scroll, top, bottom, follow |
+| `d` / `c` / `a` | Device / configuration / args | `K` | Clear the log |
+| `A` | Reload on save on/off | `e` / `E` | Open in editor / choose editor |
+| `p` | Recent projects | `?` | All shortcuts |
+
+Click a file link to open it; Shift+drag selects text (Option+drag in iTerm2).
+For development: `swift run hotplate-cli`.
+
 ## How it works
 
 - `FlutterDaemon` runs `flutter run --machine -d <device> <args>` and speaks its
@@ -85,6 +111,8 @@ System Settings › Privacy & Security. To ship without warnings you need the Ap
 ```
 Sources/HotplateCore   # protocol, process, watcher, models (unit-tested)
 Sources/Hotplate       # SwiftUI app
+Sources/HotplateTUI    # terminal UI (unit-tested)
+Sources/hotplate-cli   # the `hotplate` command
 Tests/HotplateCoreTests
 scripts/build_app.sh        # .app + zip
 docs/superpowers/           # design spec and implementation plan
