@@ -51,6 +51,9 @@ struct SettingsView: View {
                 Text("Changes to .dart files under lib/ within this window are merged into one hot reload.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Command line") {
+                CommandLineToolRow()
+            }
         }
         .formStyle(.grouped)
         .frame(width: 480)

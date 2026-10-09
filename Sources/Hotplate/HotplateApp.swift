@@ -17,6 +17,9 @@ struct HotplateApp: App {
                 Button("Open Project…") { model.openProjectPanel() }.keyboardShortcut("o")
                 Button("Open in Editor") { model.openInEditor() }.keyboardShortcut("e").disabled(!model.canOpenInEditor)
             }
+            CommandGroup(after: .appInfo) {
+                Button("Install Command Line Tool…") { CommandLineInstaller.install() }
+            }
             CommandMenu("Flutter") {
                 Button("Run") { Task { await model.run() } }
                     .keyboardShortcut(.return, modifiers: .command).disabled(!model.canRun)
