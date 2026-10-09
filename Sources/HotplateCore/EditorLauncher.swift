@@ -63,11 +63,15 @@ public enum EditorLauncher {
         return t.contains("{path}") ? t.replacingOccurrences(of: "{path}", with: quoted) : "\(t) \(quoted)"
     }
 
+    /// The argv that runs a user command through an interactive login shell (job control off, see `FlutterLocator`).
+    static func shellArgv(_ command: String) -> [String] { ["/bin/zsh"] + FlutterLocator.loginShellArguments(command) }
+
     /// Runs a custom command through an interactive login shell so user PATH and aliases apply.
     public static func runCustom(template: String, projectPath: String, environment: [String: String]) throws {
+        let argv = shellArgv(expand(template: template, projectPath: projectPath))
         let p = Process()
-        p.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        p.arguments = ["-lic", expand(template: template, projectPath: projectPath)]
+        p.executableURL = URL(fileURLWithPath: argv[0])
+        p.arguments = Array(argv.dropFirst())
         p.currentDirectoryURL = URL(fileURLWithPath: projectPath)
         p.environment = environment
         p.standardInput = FileHandle.nullDevice

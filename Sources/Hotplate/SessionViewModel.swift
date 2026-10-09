@@ -9,9 +9,7 @@ extension Session {
     static let shared: Session = Snapshot.requestedDirectory != nil ? preview() : makeAppSession()
 
     private static func makeAppSession() -> Session {
-        let session = Session(store: ProjectStore(), hints: .gui)
-        session.onError = { _ in NSSound.beep() }
-        return session
+        Session(store: ProjectStore(), hints: .gui, onError: { _ in NSSound.beep() })
     }
 
     func openProjectPanel() {

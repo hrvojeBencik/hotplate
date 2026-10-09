@@ -21,4 +21,8 @@ final class EditorLauncherTests: XCTestCase {
         XCTAssertTrue(ids.contains("com.microsoft.VSCode"))
         XCTAssertEqual(ids.count, Set(ids).count)
     }
+
+    func testShellArgvRunsALoginShellWithoutJobControl() {
+        XCTAssertEqual(EditorLauncher.shellArgv("code ."), ["/bin/zsh", "+m", "-lic", "code ."])
+    }
 }

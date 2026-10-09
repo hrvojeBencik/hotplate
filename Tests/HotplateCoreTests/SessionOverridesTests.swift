@@ -282,4 +282,47 @@ final class SessionOverridesTests: XCTestCase {
         s.setAutoReload(false)
         XCTAssertEqual(saved(h, path)?.lastDeviceId, "macos")
     }
+
+    func testStartupWithoutFlutterIsIdle() async throws {
+        let h = SessionHarness(devices: threeDevices)
+        h.flutterPath = nil
+        let (path, store) = try savedProject(h)
+        let s = h.makeSession(store: store)
+        s.selectProject(path: path)
+        let outcome = await s.startup(autoRun: true)
+        XCTAssertEqual(outcome, .idle)
+        XCTAssertTrue(h.daemons.isEmpty)
+    }
+
+    func testDeviceChosenInTheTUISurvivesRunWithADeviceConfig() async throws {
+        let h = SessionHarness(devices: threeDevices)
+        let (path, store) = try deviceProject(h, savedDevice: "chrome", config: "Dev")
+        let s = h.makeSession(store: store)
+        s.selectProject(path: path)
+        _ = await s.startup(autoRun: false)
+        XCTAssertEqual(s.selectedDeviceId, "chrome")
+        s.chooseDevice(id: "ios1")
+        await s.refreshDevices()  // Ctrl+R in the device picker
+        XCTAssertEqual(s.selectedDeviceId, "ios1")
+        await s.run()
+        XCTAssertEqual(h.lastDaemon?.config.deviceId, "ios1")
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "ios1")
+        XCTAssertEqual(s.selectedLaunchConfigName, "Dev")
+    }
+
+    func testInvalidFlutterOverrideWarnsWhenFallingBack() {
+        let h = SessionHarness()
+        h.locateFlutter = { $0 == "/nope" ? "/fake/flutter" : nil }
+        let s = h.makeSession(flutterPathOverride: "/nope")
+        XCTAssertEqual(s.flutterPath, "/fake/flutter")
+        XCTAssertTrue(s.logs.contains { $0.kind == .warning && $0.text == "--flutter /nope is not an executable flutter; using /fake/flutter instead." },
+                      "\(s.logs.map(\.text))")
+    }
+
+    func testValidFlutterOverrideDoesNotWarn() {
+        let h = SessionHarness()
+        h.locateFlutter = { _ in "/sdk/flutter/bin/flutter" }
+        let s = h.makeSession(flutterPathOverride: "/sdk/flutter")
+        XCTAssertFalse(s.logs.contains { $0.text.contains("is not an executable flutter") })
+    }
 }

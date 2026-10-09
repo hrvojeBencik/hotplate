@@ -43,6 +43,8 @@ public final class Session {
         case overriddenConfig  // a device pinned by a launch config that is overridden for this session only
     }
     @ObservationIgnored private var deviceOrigin = DeviceOrigin.remembered
+    /// A chosen config's device that was not in the device list yet; adopted by the next device refresh.
+    @ObservationIgnored private var pendingConfigDevice: String?
 
     @ObservationIgnored private let deps: SessionDependencies
     @ObservationIgnored private let flutterPathOverride: String?
@@ -58,11 +60,12 @@ public final class Session {
     private let maxLogLines = 5000
 
     public init(store: ProjectStore, dependencies: SessionDependencies = .live, hints: SessionHints = .gui,
-                flutterPathOverride: String? = nil, restoreLastProject: Bool = true) {
+                flutterPathOverride: String? = nil, restoreLastProject: Bool = true, onError: ((String) -> Void)? = nil) {
         self.store = store
         self.deps = dependencies
         self.hints = hints
         self.flutterPathOverride = flutterPathOverride
+        self.onError = onError
         relocateFlutter()
         if restoreLastProject, let last = store.lastProjectPath, FileManager.default.fileExists(atPath: last) {
             selectProject(path: last)
@@ -97,6 +100,13 @@ public final class Session {
 
     public func relocateFlutter() {
         flutterPath = deps.locateFlutter(flutterPathOverride ?? store.manualFlutterPath)
+        if let wanted = flutterPathOverride, let found = flutterPath {
+            // `locate` falls back to auto-detection when the given path is not an executable flutter.
+            let expanded = (wanted.trimmingCharacters(in: .whitespaces) as NSString).expandingTildeInPath
+            if found != expanded, !found.hasPrefix(expanded.hasSuffix("/") ? expanded : expanded + "/") {
+                log("--flutter \(wanted) is not an executable flutter; using \(found) instead.", .warning)
+            }
+        }
         if let flutterPath {
             log("Using flutter at \(flutterPath)", .info)
             let path = deps.environment(flutterPath)["PATH"] ?? ""
@@ -185,6 +195,7 @@ public final class Session {
 
     public func chooseDevice(id: String) {
         overrides.deviceQuery = nil
+        pendingConfigDevice = nil
         deviceOrigin = .remembered
         selectedDeviceId = id
     }
@@ -291,7 +302,7 @@ public final class Session {
         do {
             if store.editorUseCustomCommand {
                 let cmd = EditorLauncher.expand(template: store.editorOpenFileCommand, projectPath: project.path, file: file, line: line)
-                try EditorLauncher.run(argv: ["/bin/zsh", "-lic", cmd], environment: env)
+                try EditorLauncher.run(argv: EditorLauncher.shellArgv(cmd), environment: env)
                 log("Opened \((file as NSString).lastPathComponent)\(where_) via \(cmd)", .info)
                 return
             }
@@ -313,16 +324,22 @@ public final class Session {
     // MARK: Launch configurations (.vscode/launch.json)
 
     /// Applies a launch configuration to the args field (and device, if the config names one).
-    public func selectLaunchConfig(name: String?) {
+    public func selectLaunchConfig(name: String?) { applyLaunchConfig(name: name, adoptDevice: true) }
+
+    private func applyLaunchConfig(name: String?, adoptDevice: Bool) {
         guard let name, let cfg = launchConfigs.first(where: { $0.name == name }) else {
             selectedLaunchConfigName = nil
+            pendingConfigDevice = nil
             return
         }
         applyingLaunchConfig = true
         extraArgs = ArgumentSplitter.join(cfg.flutterRunArguments)
         applyingLaunchConfig = false
         selectedLaunchConfigName = name
-        if let dev = cfg.deviceId { adoptConfigDevice(dev) }
+        if adoptDevice {
+            pendingConfigDevice = nil
+            if let dev = cfg.deviceId { adoptConfigDevice(dev) }
+        }
         log("Launch config \"\(name)\" → \(extraArgs.isEmpty ? "(no extra args)" : extraArgs)", .info)
         if let mode = cfg.flutterMode?.lowercased(), mode != "debug" {
             log("Note: \(mode) mode does not support hot reload.", .warning)
@@ -331,18 +348,21 @@ public final class Session {
 
     /// A config's device never replaces a `--device` choice; under an overridden config it is not saved.
     private func adoptConfigDevice(_ id: String) {
-        guard overrides.deviceQuery == nil, devices.contains(where: { $0.id == id }) else { return }
+        guard overrides.deviceQuery == nil else { return }
+        guard devices.contains(where: { $0.id == id }) else { pendingConfigDevice = id; return }
+        pendingConfigDevice = nil
         deviceOrigin = (overrides.configName != nil || overrides.args != nil) ? .overriddenConfig : .remembered
         selectedDeviceId = id
     }
 
-    /// Re-reads launch.json so edits made in the editor are picked up before a run.
+    /// Re-reads launch.json so edits made in the editor are picked up before a run. Refreshes the args only:
+    /// the config's device was adopted when the config was chosen, and a device picked since then must stay.
     public func reloadLaunchConfigs() {
         guard let project else { return }
         launchConfigs = LaunchConfigReader.load(projectPath: project.path)
         guard let name = selectedLaunchConfigName else { return }
         if launchConfigs.contains(where: { $0.name == name }) {
-            selectLaunchConfig(name: name)
+            applyLaunchConfig(name: name, adoptDevice: false)
         } else {
             log("Launch config \"\(name)\" no longer exists in launch.json; keeping current args.", .warning)
             selectedLaunchConfigName = nil
@@ -362,7 +382,8 @@ public final class Session {
 
     /// Terminal start: waits for the device list, resolves `--device`, and runs when the device is known.
     public func startup(autoRun: Bool) async -> StartupOutcome {
-        guard project != nil else { return .idle }
+        // Without flutter there is no device list to pick from; the status bar and log show the hint.
+        guard project != nil, flutterPath != nil else { return .idle }
         await refreshDevices()
         if let query = overrides.deviceQuery {
             guard case .one(let device) = DeviceMatcher.match(query: query, in: devices) else { return .needsDevice(filter: query) }
@@ -386,9 +407,7 @@ public final class Session {
         do {
             let list = try await deps.listDevices(flutterPath, deps.environment(flutterPath), project?.path)
             devices = list
-            if let name = selectedLaunchConfigName, let dev = launchConfigs.first(where: { $0.name == name })?.deviceId {
-                adoptConfigDevice(dev)
-            }
+            if let dev = pendingConfigDevice { adoptConfigDevice(dev) }
             if selectedDeviceId == nil || !list.contains(where: { $0.id == selectedDeviceId }) {
                 // A fallback is only a suggestion for this session; it must not become the remembered device.
                 let wasSuppressed = suppressPersist
@@ -543,9 +562,9 @@ public final class Session {
 
     public func clearLogs() { logs.removeAll() }
 
-    /// Called on quit: stops the daemon if needed.
+    /// Called on quit (after `stop`, which shows "Stopping…"): stops the daemon if it is still there.
     public func shutdown() async {
         stopWatcher()
-        await daemon?.stop()
+        if let d = daemon, !d.wasStopRequested { await d.stop() }
     }
 }

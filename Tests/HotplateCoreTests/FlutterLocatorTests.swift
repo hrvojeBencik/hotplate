@@ -20,4 +20,25 @@ final class FlutterLocatorTests: XCTestCase {
         XCTAssertEqual(parts.count, Set(parts).count, "PATH has duplicates: \(parts)")
         XCTAssertNotNil(env["LANG"])
     }
+
+    func testLoginShellDisablesJobControl() {
+        // Without +m an interactive zsh started from a terminal grabs the tty and is stopped (SIGTTOU/SIGTTIN).
+        XCTAssertEqual(FlutterLocator.loginShellArguments("echo hi"), ["+m", "-lic", "echo hi"])
+        XCTAssertEqual(FlutterLocator.loginShellArguments("echo hi", interactive: false), ["+m", "-lc", "echo hi"])
+    }
+
+    func testComposedPathKeepsInheritedPathBeforeLoginShellPath() {
+        let path = FlutterLocator.composePath(flutterBin: "/f/bin", inherited: "/term/bin:/usr/bin:/f/bin", login: "/login/bin:/usr/bin")
+        let parts = path.split(separator: ":").map(String.init)
+        XCTAssertEqual(Array(parts.prefix(4)), ["/f/bin", "/term/bin", "/login/bin", "/usr/bin"])
+        XCTAssertTrue(parts.contains("/opt/homebrew/bin"))
+        XCTAssertEqual(parts.count, Set(parts).count, "PATH has duplicates: \(parts)")
+    }
+
+    func testComposedPathForAGUIAppKeepsLoginOrder() {
+        // A Finder-launched app inherits launchd's minimal PATH; it must not move /usr/bin ahead of Homebrew.
+        let path = FlutterLocator.composePath(flutterBin: "/f/bin", inherited: "/usr/bin:/bin:/usr/sbin:/sbin",
+                                              login: "/opt/homebrew/bin:/usr/bin:/bin")
+        XCTAssertEqual(Array(path.split(separator: ":").map(String.init).prefix(4)), ["/f/bin", "/opt/homebrew/bin", "/usr/bin", "/bin"])
+    }
 }

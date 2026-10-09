@@ -60,6 +60,8 @@ public final class FakeWatcher: SessionWatcher, @unchecked Sendable {
 public final class SessionHarness: @unchecked Sendable {
     public var devices: [FlutterDevice]
     public var flutterPath: String? = "/fake/flutter"
+    /// Replaces the `flutterPath` lookup; receives the manual path (or `--flutter` override).
+    public var locateFlutter: ((String?) -> String?)?
     public private(set) var daemons: [FakeDaemon] = []
     public private(set) var watchers: [FakeWatcher] = []
     public let suiteName = "hotplate.tests.\(UUID().uuidString)"
@@ -77,7 +79,10 @@ public final class SessionHarness: @unchecked Sendable {
 
     public var dependencies: SessionDependencies {
         SessionDependencies(
-            locateFlutter: { [weak self] _ in self?.flutterPath },
+            locateFlutter: { [weak self] manual in
+                guard let self else { return nil }
+                return self.locateFlutter.map { $0(manual) } ?? self.flutterPath
+            },
             environment: { _ in ["PATH": "/usr/bin:/bin"] },
             listDevices: { [weak self] _, _, _ in
                 guard let self else { return [] }
@@ -100,8 +105,10 @@ public final class SessionHarness: @unchecked Sendable {
         return store
     }
 
-    @MainActor public func makeSession(store: ProjectStore? = nil, hints: SessionHints = .terminal) -> Session {
-        Session(store: store ?? makeStore(), dependencies: dependencies, hints: hints, restoreLastProject: false)
+    @MainActor public func makeSession(store: ProjectStore? = nil, hints: SessionHints = .terminal,
+                                       flutterPathOverride: String? = nil) -> Session {
+        Session(store: store ?? makeStore(), dependencies: dependencies, hints: hints, flutterPathOverride: flutterPathOverride,
+                restoreLastProject: false)
     }
 }
 

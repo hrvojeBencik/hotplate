@@ -51,10 +51,17 @@ public enum FlutterLocator {
         return value.isEmpty ? nil : value
     }
 
+    /// Arguments for `/bin/zsh` running `command` in a login shell. `+m` turns job control off: `Process` puts the
+    /// child in its own process group, and an interactive zsh with job control would try to take over a controlling
+    /// terminal (the `hotplate` command's) and be stopped until killed.
+    static func loginShellArguments(_ command: String, interactive: Bool = true) -> [String] {
+        ["+m", interactive ? "-lic" : "-lc", command]
+    }
+
     private static func shellPath(interactive: Bool) -> String? {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: "/bin/zsh")
-        p.arguments = [interactive ? "-lic" : "-lc", "printf '\(startMarker)%s\(endMarker)' \"$PATH\""]
+        p.arguments = loginShellArguments("printf '\(startMarker)%s\(endMarker)' \"$PATH\"", interactive: interactive)
         var env = ProcessInfo.processInfo.environment
         env["TERM"] = "dumb"
         p.environment = env
@@ -79,15 +86,26 @@ public enum FlutterLocator {
                 "\(home)/.rbenv/shims", "\(home)/.rvm/bin", "\(home)/.local/bin"]
     }
 
-    public static func environment(flutterPath: String) -> [String: String] {
-        var env = ProcessInfo.processInfo.environment
-        let flutterBin = (flutterPath as NSString).deletingLastPathComponent
+    /// PATH order: flutter's bin dir, then the PATH this process inherited, then the login shell's PATH, then the
+    /// safety-net dirs, without duplicates. From a terminal the inherited PATH is the user's real one (including
+    /// per-directory tools such as fvm or asdf shims), so it wins. The system dirs (/usr/bin, /bin, …) are skipped
+    /// in the inherited part and keep their login-shell position: a GUI app inherits only launchd's
+    /// /usr/bin:/bin:/usr/sbin:/sbin, and putting those first would let e.g. the system ruby shadow Homebrew's.
+    static func composePath(flutterBin: String, inherited: String, login: String) -> String {
+        let systemDirs = Set(defaultPath.split(separator: ":").map(String.init))
         var parts = [flutterBin]
-        parts += loginShellPath().split(separator: ":").map(String.init)
+        parts += inherited.split(separator: ":").map(String.init).filter { !systemDirs.contains($0) }
+        parts += login.split(separator: ":").map(String.init)
         parts += fallbackDirs
         parts += defaultPath.split(separator: ":").map(String.init)
         var seen = Set<String>()
-        env["PATH"] = parts.filter { !$0.isEmpty && seen.insert($0).inserted }.joined(separator: ":")
+        return parts.filter { !$0.isEmpty && seen.insert($0).inserted }.joined(separator: ":")
+    }
+
+    public static func environment(flutterPath: String) -> [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        env["PATH"] = composePath(flutterBin: (flutterPath as NSString).deletingLastPathComponent,
+                                  inherited: env["PATH"] ?? "", login: loginShellPath())
         env["FLUTTER_SUPPRESS_ANALYTICS"] = "true"
         // CocoaPods refuses to run without a UTF-8 locale; Finder-launched apps have none.
         if env["LANG"] == nil, env["LC_ALL"] == nil { env["LANG"] = "en_US.UTF-8" }

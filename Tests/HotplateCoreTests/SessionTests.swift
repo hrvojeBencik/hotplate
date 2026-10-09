@@ -120,4 +120,14 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(s.devices.map(\.id), ["ios1", "chrome"])
         XCTAssertFalse(s.isLoadingDevices)
     }
+
+    func testOnErrorPassedToInitSeesAFailedRestore() throws {
+        let h = SessionHarness()
+        let store = h.makeStore()
+        store.lastProjectPath = NSTemporaryDirectory()  // exists, but is not a Flutter project
+        var errors: [String] = []
+        let s = Session(store: store, dependencies: h.dependencies, hints: .gui, onError: { errors.append($0) })
+        XCTAssertNil(s.project)
+        XCTAssertEqual(errors.count, 1)
+    }
 }
