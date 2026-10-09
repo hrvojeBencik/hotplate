@@ -8,7 +8,8 @@ public enum Clipboard {
         p.standardInput = pipe
         do {
             try p.run()
-            pipe.fileHandleForWriting.write(Data(text.utf8))
+            // The throwing variant reports EPIPE (pbcopy gone) as an error instead of raising an ObjC exception.
+            try pipe.fileHandleForWriting.write(contentsOf: Data(text.utf8))
             try pipe.fileHandleForWriting.close()
         } catch {}
     }

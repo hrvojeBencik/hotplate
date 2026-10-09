@@ -38,4 +38,37 @@ final class ScreenBufferTests: XCTestCase {
         XCTAssertEqual(CharWidth.truncate("abcdef", to: 4), "abc…")
         XCTAssertEqual(CharWidth.truncate("abc", to: 4), "abc")
     }
+
+    func testOverwritingTheRightHalfOfAWideCharBlanksItsLeftHalf() {
+        var b = ScreenBuffer(width: 4, height: 1)
+        b.put("界x", x: 0, y: 0)
+        b.put("a", x: 1, y: 0)
+        XCTAssertEqual(b.text(row: 0), " ax ")
+        XCTAssertEqual(b[0, 0].width, 1)
+        XCTAssertEqual(b[1, 0].width, 1)
+    }
+
+    func testOverwritingTheLeftHalfOfAWideCharBlanksItsRightHalf() {
+        var b = ScreenBuffer(width: 4, height: 1)
+        b.put("x界", x: 0, y: 0)
+        b.put("a", x: 1, y: 0)
+        XCTAssertEqual(b.text(row: 0), "xa  ")
+        XCTAssertEqual(b[2, 0].width, 1)
+    }
+
+    func testFillOverPartOfAWideCharBlanksTheOtherHalf() {
+        var b = ScreenBuffer(width: 4, height: 1)
+        b.put("界界", x: 0, y: 0)
+        b.fill(x: 1, y: 0, width: 2, style: .plain)
+        XCTAssertEqual(b.text(row: 0), "    ")
+        XCTAssertEqual((0..<4).map { b[$0, 0].width }, [1, 1, 1, 1])
+    }
+
+    func testWideCharOverAWideCharShiftedByOne() {
+        var b = ScreenBuffer(width: 5, height: 1)
+        b.put("界界", x: 0, y: 0)
+        b.put("世", x: 1, y: 0)
+        XCTAssertEqual(b.text(row: 0), " 世  ")
+        XCTAssertEqual((0..<5).map { b[$0, 0].width }, [1, 2, 0, 1, 1])
+    }
 }

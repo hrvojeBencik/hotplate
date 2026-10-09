@@ -30,6 +30,7 @@ public struct ScreenBuffer: Equatable, Sendable {
             let w = CharWidth.of(c)
             if w == 0 { continue }
             if col + w > limit { break }
+            clearWideHalves(x: col, y: y, width: w)
             cells[y * width + col] = Cell(char: c, width: w, style: style)
             if w == 2 { cells[y * width + col + 1] = Cell(char: " ", width: 0, style: style) }
             col += w
@@ -41,7 +42,21 @@ public struct ScreenBuffer: Equatable, Sendable {
         guard y >= 0, y < height else { return }
         let start = max(0, x), end = min(width, x + (w ?? width))
         guard start < end else { return }
+        clearWideHalves(x: start, y: y, width: end - start)
         for col in start..<end { cells[y * width + col] = Cell(char: " ", width: 1, style: style) }
+    }
+
+    /// Before columns x..<x+w are overwritten: blanks the half of a wide character that would be left orphaned
+    /// (its left half when the span starts on a right half, its right half when the span ends on a left half).
+    private mutating func clearWideHalves(x: Int, y: Int, width w: Int) {
+        let row = y * width
+        if x > 0, cells[row + x].width == 0 {
+            cells[row + x - 1] = Cell(char: " ", width: 1, style: cells[row + x - 1].style)
+        }
+        let last = x + w - 1
+        if last + 1 < width, cells[row + last].width == 2 {
+            cells[row + last + 1] = Cell(char: " ", width: 1, style: cells[row + last + 1].style)
+        }
     }
 
     /// Plain text of a row, for tests and debugging.

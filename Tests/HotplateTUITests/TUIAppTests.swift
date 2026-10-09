@@ -283,4 +283,46 @@ final class TUIAppTests: XCTestCase {
         app.handle(.mouse(MouseEvent(button: .left, x: LogViewport.gutter + 10, y: 2, pressed: true)))
         XCTAssertNil(app.viewport.selectedLineId)
     }
+
+    func testMissingFlutterShowsTheHintInsteadOfTheDevicePicker() async throws {
+        let h = SessionHarness()
+        h.flutterPath = nil
+        let (app, _, _) = try makeApp(h)
+        await app.start(autoRun: true)
+        XCTAssertEqual(app.mode, .normal)
+        XCTAssertTrue(screen(app).contains("flutter not found"))
+        XCTAssertTrue(h.daemons.isEmpty)
+    }
+
+    func testQuittingShowsStoppingAndIgnoresKeys() async throws {
+        let h = SessionHarness()
+        let (app, s, c) = try makeApp(h, savedDevice: "ios1")
+        await app.start(autoRun: true)
+        app.handle(key(.char("q")))
+        let exited = await waitUntil { !c.exitCodes.isEmpty }
+        XCTAssertTrue(exited)
+        XCTAssertTrue(s.logs.contains { $0.text == "Stopping…" })
+        app.handle(key(.enter))
+        app.handle(key(.char("d")))
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(h.daemons.count, 1)
+        XCTAssertEqual(app.mode, .normal)
+    }
+
+    func testCtrlCStillForcesWhileQuitting() async throws {
+        let h = SessionHarness()
+        let (app, _, c) = try makeApp(h, savedDevice: "ios1")
+        await app.start(autoRun: true)
+        app.handle(key(.char("q")))
+        app.handle(key(.ctrl("c")))
+        c.now = c.now.addingTimeInterval(1)
+        app.handle(key(.ctrl("c")))
+        XCTAssertTrue(c.exitCodes.contains(130))
+    }
+
+    func testHangupAndEndOfInputQuitGracefully() {
+        XCTAssertFalse(TerminalLoop.countsAsInterrupt(signal: SIGHUP))
+        XCTAssertTrue(TerminalLoop.countsAsInterrupt(signal: SIGINT))
+        XCTAssertTrue(TerminalLoop.countsAsInterrupt(signal: SIGTERM))
+    }
 }

@@ -60,6 +60,7 @@ public final class TUIApp {
     public func handle(_ event: InputEvent) {
         defer { scheduleRender() }
         if event == .key(.ctrl("c")) { quit(fromInterrupt: true); return }
+        if quitting { return }  // shutting down: only Ctrl+C (force) still counts
         if case .mouse = event, size.width < Layout.minWidth || size.height < Layout.minHeight { return }
         switch mode {
         case .help:
@@ -313,6 +314,7 @@ public final class TUIApp {
         guard !quitting else { return }
         quitting = true
         Task {
+            await session.stop()  // shows "Stopping…" while flutter exits
             await session.shutdown()
             if !forceQuitting { exit(0) }
         }

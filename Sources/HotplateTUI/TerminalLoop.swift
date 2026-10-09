@@ -20,8 +20,15 @@ public final class TerminalLoop {
             guard let self else { return }
             self.app.resize(to: self.terminal.size())
         }
-        for sig in [SIGTERM, SIGHUP, SIGINT] { watch(sig) { [weak self] in self?.app.quit() } }
+        for sig in [SIGTERM, SIGHUP, SIGINT] {
+            let interrupt = Self.countsAsInterrupt(signal: sig)
+            watch(sig) { [weak self] in self?.app.quit(fromInterrupt: interrupt) }
+        }
     }
+
+    /// SIGINT and SIGTERM count toward the "second interrupt kills flutter" rule. SIGHUP (the terminal window
+    /// closed) quits gracefully, like `q`, so a hangup followed by EOF never force-kills flutter.
+    nonisolated static func countsAsInterrupt(signal sig: Int32) -> Bool { sig != SIGHUP }
 
     private func watch(_ sig: Int32, _ handler: @escaping @MainActor () -> Void) {
         signal(sig, SIG_IGN)
@@ -37,7 +44,7 @@ public final class TerminalLoop {
         if n == 0 || (n < 0 && errno != EINTR && errno != EAGAIN) {
             // The terminal went away (EOF or a hard read error): stop reading so it does not spin or count as repeated quit requests.
             input?.cancel()
-            app.quit()
+            app.quit(fromInterrupt: false)
             return
         }
         guard n > 0 else { return }
