@@ -180,7 +180,7 @@ struct MainWindow: View {
     private var devicePicker: some View {
         HStack(spacing: 2) {
             Picker(selection: Binding(get: { model.selectedDeviceId ?? "" },
-                                      set: { model.selectedDeviceId = $0.isEmpty ? nil : $0 })) {
+                                      set: { if !$0.isEmpty { model.chooseDevice(id: $0) } })) {
                 if model.devices.isEmpty { Text(model.isLoadingDevices ? "Looking for devices…" : "No devices").tag("") }
                 ForEach(model.devices) { d in
                     Label(d.displayName, systemImage: deviceSymbol(d)).tag(d.id)

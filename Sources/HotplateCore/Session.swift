@@ -394,7 +394,7 @@ public final class Session {
                 let wasSuppressed = suppressPersist
                 suppressPersist = true
                 selectedDeviceId = list.first?.id
-                if list.first != nil { deviceOrigin = .fallback }
+                deviceOrigin = .fallback  // also when the list is empty: that nil must never be saved
                 suppressPersist = wasSuppressed
             }
             if list.isEmpty { deviceError = "No devices found. Start a simulator or connect a device, then refresh." }

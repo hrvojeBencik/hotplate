@@ -261,4 +261,25 @@ final class SessionOverridesTests: XCTestCase {
         XCTAssertEqual(saved(h, path)?.lastDeviceId, "chrome")
         XCTAssertEqual(saved(h, path)?.launchConfigName, "Dev")
     }
+
+    func testChoosingAfterAFallbackSaves() async throws {
+        let h = SessionHarness(devices: [.fake("ios1", "iPhone 16 Pro"), .fake("chrome", "Chrome", platform: "web-javascript")])
+        let (path, store) = try savedProject(h)  // saved device macos is not in the list
+        let s = h.makeSession(store: store)
+        s.selectProject(path: path)
+        await s.refreshDevices()
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "macos")
+        s.chooseDevice(id: "chrome")
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "chrome")
+    }
+
+    func testEmptyDeviceListDoesNotEraseSavedDevice() async throws {
+        let h = SessionHarness(devices: [])
+        let (path, store) = try savedProject(h)
+        let s = h.makeSession(store: store)
+        s.selectProject(path: path)
+        await s.refreshDevices()
+        s.setAutoReload(false)
+        XCTAssertEqual(saved(h, path)?.lastDeviceId, "macos")
+    }
 }
