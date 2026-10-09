@@ -144,8 +144,8 @@ obzira na velika/mala slova), ↑↓ ili Ctrl+P/Ctrl+N pomeraju izbor, ⏎ bira,
 Esc zatvara. Trenutna vrednost je označena sa `●`.
 
 - **Uređaji:** `displayName` + platforma. Ctrl+R osvežava (`flutter devices`),
-  a dok traje prikazuje se „Refreshing…“. Prazno stanje: „No devices. Start a
-  simulator or connect a device, then Ctrl+R.“
+  a dok traje prikazuje se „Refreshing…“. Prazno stanje: „No devices. Start one,
+  then press Ctrl+R.“
 - **Konfiguracije:** sve iz launch.json + „Custom (keep current args)“.
 - **Editori:** detektovani editori (`EditorLauncher.detectInstalled`), ručno
   izabrani editor ako postoji, i „Custom command“ ako je podešena u GUI-ju.
@@ -249,7 +249,7 @@ nije.
 | `LogViewport` | od `[LogLine]` i širine pravi prelomljene vizuelne redove sa mapiranjem nazad (linija, opseg kolona). Drži offset, follow, izabranu liniju i pogotke pretrage; `hitTest(x, y) -> (lineId, LogLink?)` |
 | `StatusBar`, `FooterBar`, `Picker`, `TextInput`, `HelpOverlay` | crtaju u `ScreenBuffer` iz svog stanja; bez I/O |
 | `KeyBindings` | tabela `(Mode, Key) -> Action` sa labelom; iz nje se generišu donja traka i `?` pomoć |
-| `TUIApp` | mašina stanja modova (`normal`, `lineSelected`, `picker(kind)`, `input(kind)`, `search`, `help`), prevodi `Action` u pozive `Session` preko protokola `SessionControl` (koji `Session` implementira, a testovi lažiraju), zakazuje render |
+| `TUIApp` | mašina stanja modova (`normal`, `picker`, `input(args\|search)`, `help`; izabrana linija i pretraga su stanje `LogViewport`-a), prevodi `Action` u pozive `Session`, zakazuje render |
 
 ### Tok podataka i petlja
 
@@ -337,7 +337,7 @@ Sve u `swift test`, po TDD-u.
 - `PickerTests`: filtriranje, kretanje, izbor, prazno stanje.
 - `KeyBindingsTests`: nema duplih tastera u istom modu; svaka `Action` ima
   labelu; footer staje u zadatu širinu i završava sa `? help`.
-- `TUIAppTests` (lažna `Session` površina preko protokola `SessionControl`):
+- `TUIAppTests` (prava `Session` sa lažnim zavisnostima iz zajedničkog test targeta `HotplateTestSupport`):
   `⏎` u idle zove run; `⏎` sa izabranom linijom otvara link; `q` zove stop
   pa exit; dupli Ctrl+C u 2 s zove terminate.
 
