@@ -167,7 +167,7 @@ Custom, isto kao ručna izmena u GUI-ju.
 HotplateCore      library     postojeće + Session, LogLine/LogKind, ProjectStore, ProjectLocator,
                               DeviceMatcher, HotplateVersion
 HotplateTUI       library     sav TUI kod, bez main-a, testabilan
-hotplate          executable  Sources/hotplate/main.swift: opcije, TTY provera, pokretanje TUIApp
+hotplate-cli      executable  Sources/hotplate-cli/main.swift: opcije, TTY provera, pokretanje TUIApp
 Hotplate          executable  GUI, tanak omotač oko Session
 HotplateCoreTests             + SessionTests, ProjectLocatorTests, DeviceMatcherTests, ProjectStoreTests
 HotplateTUITests              novo
@@ -265,8 +265,9 @@ nije.
   → na promenu `scheduleRender()`. Render se spaja: najviše jedan na 16 ms,
   a posle svakog rendera se tracking ponovo registruje. Ulazni događaji takođe
   zakazuju render.
-- Neuhvaćena greška ili `fatalError` u našem kodu: `atexit` handler vraća
-  terminal.
+- Neuhvaćena greška ili `fatalError` u našem kodu: handleri za crash signale
+  (`sigaction` za SIGSEGV, SIGBUS, SIGILL, SIGTRAP, SIGABRT, SIGFPE) vraćaju
+  terminal; `atexit` pokriva samo normalan `exit`.
 
 ### Otvaranje linkova
 

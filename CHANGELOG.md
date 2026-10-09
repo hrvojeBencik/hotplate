@@ -6,7 +6,7 @@
   run arguments and a log whose file links open your editor at the line, all from the keyboard (mouse works too).
 - Options for one-off runs: `-d <device>`, `-c <config>`, `--no-run`, `--no-auto-reload`, `--flutter <path>`,
   and `-- <flutter run args>`. They never overwrite your saved settings.
-- Hotplate → Install Command Line Tool… links `/usr/local/bin/hotplate`; Homebrew installs it automatically.
+- Hotplate → Install Command Line Tool… links `/usr/local/bin/hotplate`; Homebrew: the cask installs the command (with the 1.1.0 cask update).
 - The terminal and the app share settings: editor, debounce, and the device/args remembered per project.
 
 ## 1.0.0 — 2026-09-18

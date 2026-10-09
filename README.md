@@ -66,7 +66,7 @@ hotplate ~/code/my_app -d iphone -c Dev
 hotplate -- --flavor dev --dart-define=API=staging
 ```
 
-Install it with Hotplate → Install Command Line Tool… (Homebrew does it for you). Options apply to that run only;
+Install it with Hotplate → Install Command Line Tool… (the Homebrew cask installs it for you). Options apply to that run only;
 choices you make inside hotplate are remembered per project, shared with the app.
 
 | Key | Action | Key | Action |
