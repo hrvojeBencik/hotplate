@@ -13,6 +13,10 @@ enum CommandLineInstaller {
             alert("The command line tool is not in this build", "It ships inside Hotplate.app built with scripts/build_app.sh.")
             return
         }
+        guard !CommandLineToolStatus.isTranslocated(path: helperPath) else {
+            alert("Move Hotplate to Applications first, then install the command line tool.", "")
+            return
+        }
         guard status != .foreignFile else {
             alert("\(linkPath) is a file not created by Hotplate. Remove it manually to install.", "")
             return

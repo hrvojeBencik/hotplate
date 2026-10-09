@@ -53,4 +53,10 @@ final class CommandLineToolStatusTests: XCTestCase {
         XCTAssertEqual(CommandLineToolStatus.removeScript(linkPath: "/usr/local/bin/hotplate"),
                        #"do shell script "rm -f '/usr/local/bin/hotplate'" with administrator privileges"#)
     }
+
+    func testTranslocatedAppIsDetected() {
+        XCTAssertTrue(CommandLineToolStatus.isTranslocated(
+            path: "/private/var/folders/xy/T/AppTranslocation/1234-ABCD/d/Hotplate.app/Contents/Helpers/hotplate"))
+        XCTAssertFalse(CommandLineToolStatus.isTranslocated(path: "/Applications/Hotplate.app/Contents/Helpers/hotplate"))
+    }
 }

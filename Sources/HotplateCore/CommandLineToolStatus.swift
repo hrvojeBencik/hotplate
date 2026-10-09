@@ -32,6 +32,10 @@ public enum CommandLineToolStatus: Equatable, Sendable {
         return .foreignFile
     }
 
+    /// True when macOS runs the app from a randomized read-only copy (Gatekeeper App Translocation, e.g. straight
+    /// from Downloads); a link to that copy would break once the app quits.
+    public static func isTranslocated(path: String) -> Bool { path.contains("/AppTranslocation/") }
+
     public static func installScript(helperPath: String, linkPath: String) -> String {
         let dir = (linkPath as NSString).deletingLastPathComponent
         return adminScript("mkdir -p \(shellQuote(dir)) && ln -sf \(shellQuote(helperPath)) \(shellQuote(linkPath))")
