@@ -1,10 +1,18 @@
 import Foundation
 import Observation
-import HotplateCore
 
-/// Persists recent projects and global settings in UserDefaults.
+/// Persists recent projects and global settings in UserDefaults. Shared by the app and the terminal tool.
 @MainActor @Observable
-final class ProjectStore {
+public final class ProjectStore {
+    nonisolated public static let suiteName = "com.hrvojebencik.hotplate"
+
+    /// The app reads its own domain through `.standard`; the terminal tool (another process, no bundle id)
+    /// opens the same domain as a suite. Using the own bundle id as a suite name does not work, hence the check.
+    nonisolated public static func makeDefaults() -> UserDefaults {
+        if Bundle.main.bundleIdentifier == suiteName { return .standard }
+        return UserDefaults(suiteName: suiteName) ?? .standard
+    }
+
     private let defaults: UserDefaults
     private enum Key {
         static let recents = "recents", flutterPath = "manualFlutterPath", debounce = "debounceMs", lastProject = "lastProjectPath"
@@ -12,20 +20,20 @@ final class ProjectStore {
         static let editorFileCommand = "editorOpenFileCommand", hotkeys = "globalHotkeysEnabled"
     }
 
-    var recents: [Project] { didSet { save() } }
-    var manualFlutterPath: String { didSet { defaults.set(manualFlutterPath, forKey: Key.flutterPath) } }
-    var debounceMs: Int { didSet { defaults.set(debounceMs, forKey: Key.debounce) } }
-    var lastProjectPath: String? { didSet { defaults.set(lastProjectPath, forKey: Key.lastProject) } }
+    public var recents: [Project] { didSet { save() } }
+    public var manualFlutterPath: String { didSet { defaults.set(manualFlutterPath, forKey: Key.flutterPath) } }
+    public var debounceMs: Int { didSet { defaults.set(debounceMs, forKey: Key.debounce) } }
+    public var lastProjectPath: String? { didSet { defaults.set(lastProjectPath, forKey: Key.lastProject) } }
     /// Path to the editor .app bundle; empty means "auto-detect".
-    var editorAppPath: String { didSet { defaults.set(editorAppPath, forKey: Key.editorApp) } }
+    public var editorAppPath: String { didSet { defaults.set(editorAppPath, forKey: Key.editorApp) } }
     /// Shell command template with `{path}`; used when `editorUseCustomCommand` is on.
-    var editorCustomCommand: String { didSet { defaults.set(editorCustomCommand, forKey: Key.editorCommand) } }
-    var editorUseCustomCommand: Bool { didSet { defaults.set(editorUseCustomCommand, forKey: Key.editorUseCommand) } }
+    public var editorCustomCommand: String { didSet { defaults.set(editorCustomCommand, forKey: Key.editorCommand) } }
+    public var editorUseCustomCommand: Bool { didSet { defaults.set(editorUseCustomCommand, forKey: Key.editorUseCommand) } }
     /// Shell command template with `{file}` and `{line}`; used for log links when the custom command is on.
-    var editorOpenFileCommand: String { didSet { defaults.set(editorOpenFileCommand, forKey: Key.editorFileCommand) } }
-    var globalHotkeysEnabled: Bool { didSet { defaults.set(globalHotkeysEnabled, forKey: Key.hotkeys) } }
+    public var editorOpenFileCommand: String { didSet { defaults.set(editorOpenFileCommand, forKey: Key.editorFileCommand) } }
+    public var globalHotkeysEnabled: Bool { didSet { defaults.set(globalHotkeysEnabled, forKey: Key.hotkeys) } }
 
-    init(defaults: UserDefaults = .standard) {
+    public init(defaults: UserDefaults = ProjectStore.makeDefaults()) {
         self.defaults = defaults
         if let data = defaults.data(forKey: Key.recents), let list = try? JSONDecoder().decode([Project].self, from: data) {
             recents = list
@@ -47,7 +55,7 @@ final class ProjectStore {
         if let data = try? JSONEncoder().encode(recents) { defaults.set(data, forKey: Key.recents) }
     }
 
-    func touch(_ project: Project) {
+    public func touch(_ project: Project) {
         var p = project; p.lastOpened = Date()
         recents.removeAll { $0.path == p.path }
         recents.insert(p, at: 0)
@@ -55,11 +63,11 @@ final class ProjectStore {
         lastProjectPath = p.path
     }
 
-    func update(_ project: Project) {
+    public func update(_ project: Project) {
         if let i = recents.firstIndex(where: { $0.path == project.path }) { recents[i] = project } else { touch(project) }
     }
 
-    func remove(path: String) {
+    public func remove(path: String) {
         recents.removeAll { $0.path == path }
         if lastProjectPath == path { lastProjectPath = nil }
     }
