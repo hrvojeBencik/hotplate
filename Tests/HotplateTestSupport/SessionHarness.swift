@@ -22,9 +22,13 @@ public final class FakeDaemon: SessionDaemon, @unchecked Sendable {
 
     public func start() throws { started = true }
 
+    /// When false, `stop()` records the request but flutter keeps running (a slow or hung `app.stop`).
+    public var exitsOnStop = true
+
     public func stop() async {
         stopCalls += 1
         wasStopRequested = true
+        guard exitsOnStop else { return }
         continuation.yield(.processExited(code: 0))
         continuation.finish()
     }

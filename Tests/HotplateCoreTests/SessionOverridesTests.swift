@@ -325,4 +325,18 @@ final class SessionOverridesTests: XCTestCase {
         let s = h.makeSession(flutterPathOverride: "/sdk/flutter")
         XCTAssertFalse(s.logs.contains { $0.text.contains("is not an executable flutter") })
     }
+
+    func testPendingConfigDeviceDoesNotLeakIntoTheNextProject() async throws {
+        let h = SessionHarness(devices: [.fake("ios1", "iPhone 16 Pro")])
+        let a = try TestProject.make(name: "a", launchJSON: TestProject.deviceLaunchJSON)
+        let b = try TestProject.make(name: "b")
+        let s = h.makeSession()
+        s.selectProject(path: a)  // Dev is pinned to chrome, which isn't connected yet
+        await s.refreshDevices()
+        s.switchProject(path: b)
+        h.devices = [.fake("ios1", "iPhone 16 Pro"), .fake("chrome", "Chrome", platform: "web-javascript")]
+        await s.refreshDevices()
+        XCTAssertNotEqual(s.selectedDeviceId, "chrome")
+        XCTAssertNotEqual(h.makeStore().recents.first { $0.path == b }?.lastDeviceId, "chrome")
+    }
 }

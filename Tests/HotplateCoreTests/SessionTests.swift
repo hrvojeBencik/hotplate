@@ -130,4 +130,13 @@ final class SessionTests: XCTestCase {
         XCTAssertNil(s.project)
         XCTAssertEqual(errors.count, 1)
     }
+
+    func testShutdownAfterARequestedStopStillWaitsForFlutter() async throws {
+        let (s, _, d) = try await runningSession()
+        d.exitsOnStop = false
+        await s.stop()
+        XCTAssertEqual(s.state, .stopping)
+        await s.shutdown()
+        XCTAssertEqual(d.stopCalls, 2, "shutdown must wait for (and escalate) the stop, not skip it")
+    }
 }

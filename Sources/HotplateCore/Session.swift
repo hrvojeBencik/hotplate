@@ -121,6 +121,8 @@ public final class Session {
 
     public func selectProject(path: String) {
         if isRunning { Task { await stop(); self.selectProject(path: path) }; return }
+        // A config device waiting for its device belongs to the previous project.
+        pendingConfigDevice = nil
         do {
             var p = try Project.load(path: path)
             if let saved = store.recents.first(where: { $0.path == path }) {
@@ -562,9 +564,15 @@ public final class Session {
 
     public func clearLogs() { logs.removeAll() }
 
-    /// Called on quit (after `stop`, which shows "Stopping…"): stops the daemon if it is still there.
+    /// Called on quit: stops flutter and waits until it is gone (`FlutterDaemon.stop` escalates to SIGTERM
+    /// and SIGKILL), even when a stop was already requested and is still in progress.
     public func shutdown() async {
         stopWatcher()
-        if let d = daemon, !d.wasStopRequested { await d.stop() }
+        guard let d = daemon else { return }
+        if isRunning, state != .stopping {
+            state = .stopping
+            log("Stopping…", .info)
+        }
+        await d.stop()
     }
 }

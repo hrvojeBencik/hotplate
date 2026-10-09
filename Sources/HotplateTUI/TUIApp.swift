@@ -314,8 +314,7 @@ public final class TUIApp {
         guard !quitting else { return }
         quitting = true
         Task {
-            await session.stop()  // shows "Stopping…" while flutter exits
-            await session.shutdown()
+            await session.shutdown()  // shows "Stopping…" while flutter exits
             if !forceQuitting { exit(0) }
         }
     }
