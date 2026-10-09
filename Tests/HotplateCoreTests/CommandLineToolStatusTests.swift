@@ -30,7 +30,17 @@ final class CommandLineToolStatusTests: XCTestCase {
                        .otherCopy("/Applications/Old.app/Contents/Helpers/hotplate"))
         try FileManager.default.removeItem(atPath: link)
         FileManager.default.createFile(atPath: link, contents: Data())
-        XCTAssertEqual(CommandLineToolStatus.check(linkPath: link, helperPath: helper), .otherCopy(link))
+        XCTAssertEqual(CommandLineToolStatus.check(linkPath: link, helperPath: helper), .foreignFile)
+    }
+
+    func testForeignFile() throws {
+        FileManager.default.createFile(atPath: link, contents: Data())
+        XCTAssertEqual(CommandLineToolStatus.check(linkPath: link, helperPath: helper), .foreignFile)
+    }
+
+    func testRelativeSymlink() throws {
+        try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: "../Hotplate.app/Contents/Helpers/hotplate")
+        XCTAssertEqual(CommandLineToolStatus.check(linkPath: link, helperPath: helper), .installed)
     }
 
     func testUnavailableWithoutHelper() {

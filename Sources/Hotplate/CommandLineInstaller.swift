@@ -13,6 +13,10 @@ enum CommandLineInstaller {
             alert("The command line tool is not in this build", "It ships inside Hotplate.app built with scripts/build_app.sh.")
             return
         }
+        guard status != .foreignFile else {
+            alert("\(linkPath) is a file not created by Hotplate. Remove it manually to install.", "")
+            return
+        }
         if run(CommandLineToolStatus.installScript(helperPath: helperPath, linkPath: linkPath)) {
             alert("Installed the hotplate command", "Open a new terminal tab and run hotplate in a Flutter project. Press ? inside for shortcuts.")
         }
@@ -51,11 +55,12 @@ struct CommandLineToolRow: View {
             Button(status == .installed ? "Reinstall" : "Install") {
                 CommandLineInstaller.install(); status = CommandLineInstaller.status
             }
-            .disabled(status == .unavailable)
-            if status != .notInstalled, status != .unavailable {
+            .disabled(status == .unavailable || status == .foreignFile)
+            if status != .notInstalled, status != .unavailable, status != .foreignFile {
                 Button("Remove") { CommandLineInstaller.remove(); status = CommandLineInstaller.status }
             }
         }
+        .onAppear { status = CommandLineInstaller.status }
         Text("Run hotplate in a Flutter project folder. Press ? inside for shortcuts.")
             .font(.caption).foregroundStyle(.secondary)
     }
@@ -65,6 +70,7 @@ struct CommandLineToolRow: View {
         case .installed: return "Installed at \(CommandLineInstaller.linkPath)"
         case .notInstalled: return "Not installed"
         case .otherCopy(let path): return "\(CommandLineInstaller.linkPath) points to another copy (\(path))"
+        case .foreignFile: return "\(CommandLineInstaller.linkPath) is a file not created by Hotplate. Remove it manually to install."
         case .unavailable: return "Not available in this build"
         }
     }
