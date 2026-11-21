@@ -9,7 +9,7 @@ the "run + hot reload" part of the VS Code Flutter extension.
 
 <img src="docs/images/menubar-dark.png" width="300" alt="Menu bar panel">
 
-**Latest: 1.1.1** — 1.1.0 added the `hotplate` terminal command; 1.1.1 fixes quitting during a stop.
+**Latest: 1.2.0** — reload on save also covers local `path:` packages (like a shared `ui/` package) and the rest of the project, not only `lib/`.
 See the [changelog](CHANGELOG.md).
 
 Use it two ways, sharing the same settings:
@@ -39,7 +39,9 @@ The app is signed with a Developer ID and notarized by Apple.
 1. **Open a project**: ⌘O, or pick one from the recent projects menu. Choose the folder with `pubspec.yaml`.
 2. **Pick a device** in the toolbar (⌘⇧D refreshes the list). If the project has `.vscode/launch.json`, pick a
    configuration; its arguments fill the args field. Type in that field to pass your own `flutter run` arguments.
-3. **Run** with ⌘⏎. Turn on **Reload on save** (⌘⇧A) and every saved `.dart` file under `lib/` triggers a hot reload.
+3. **Run** with ⌘⏎. Turn on **Reload on save** (⌘⇧A) and every saved `.dart` file triggers a hot reload: in `lib/`,
+   anywhere else in the project, and in local packages you depend on with `path:` (say a `ui/` package of shared
+   widgets), even when they live outside the project. Tests, `build/`, platform folders and hidden folders are ignored.
 4. **Edit in any editor.** ⌘E opens the project in your editor (choose it in the toolbar or Settings → Editor).
    File references in the log (`lib/main.dart:12`) are links that open the file at that line.
 
@@ -97,8 +99,11 @@ Click a file link to open it; Shift+drag selects text (Option+drag in iTerm2). C
 
 - `FlutterDaemon` runs `flutter run --machine -d <device> <args>` and speaks its
   JSON protocol (`app.restart`, `app.stop`, `app.started`, `app.log`, …).
-- `FileWatcher` (FSEvents) watches `lib/` for `.dart` changes, debounced (300 ms
-  by default), and triggers a hot reload while the app is running.
+- `FileWatcher` (FSEvents) watches the project folder and its local packages for `.dart` changes, debounced
+  (300 ms by default), and triggers a hot reload while the app is running. `WatchScope` finds the local packages
+  (`path:` dependencies in `pubspec.yaml`, plus packages with a relative root in `.dart_tool/package_config.json`,
+  which covers their own local packages and pub workspace members) each time you press Run. In each package it skips
+  `test/`, `integration_test/`, `test_driver/`, `example/`, the platform folders, `build/` and hidden folders.
 - `DeviceService` runs `flutter devices --machine` for the device picker.
 - `LaunchConfigReader` reads `.vscode/launch.json` (comments and trailing commas
   tolerated). Pick a configuration in the toolbar and its `program`, `args`,

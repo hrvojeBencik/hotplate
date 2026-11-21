@@ -32,7 +32,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(d.config.deviceId, "ios1")
         XCTAssertEqual(d.config.extraArgs, ["--flavor", "dev"])
         XCTAssertEqual(d.config.projectPath, path)
-        XCTAssertEqual(h.watchers.last?.path, "\(path)/lib")
+        XCTAssertEqual(h.watchers.last?.scope, WatchScope(projectPath: path), "the whole project, not only lib/")
     }
 
     func testReloadAndStopTransitions() async throws {
@@ -138,5 +138,113 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(s.state, .stopping)
         await s.shutdown()
         XCTAssertEqual(d.stopCalls, 2, "shutdown must wait for (and escalate) the stop, not skip it")
+    }
+
+    // MARK: Watching outside lib/
+
+    func testSaveInFolderOutsideLibHotReloadsAndNamesTheFile() async throws {
+        let (s, h, d) = try await runningSession()
+        let watcher = try XCTUnwrap(h.watchers.last)
+        let project = watcher.scope.projectPath
+        watcher.fire("\(project)/ui/widgets/button.dart")
+        let reloaded = await waitUntil { d.restartCalls == [false] }
+        XCTAssertTrue(reloaded)
+        XCTAssertTrue(s.logs.contains { $0.text == "Change detected in ui/widgets/button.dart → hot reload" },
+                      "\(s.logs.map(\.text))")
+    }
+
+    func testSavesOfTestsAreIgnored() async throws {
+        let (_, h, d) = try await runningSession()
+        let watcher = try XCTUnwrap(h.watchers.last)
+        watcher.fire("\(watcher.scope.projectPath)/test/widget_test.dart")
+        try await Task.sleep(nanoseconds: 150_000_000)
+        XCTAssertEqual(d.restartCalls, [])
+    }
+
+    func testBurstOfSavesIsOneReloadThatCountsTheFiles() async throws {
+        let (s, h, d) = try await runningSession()
+        let watcher = try XCTUnwrap(h.watchers.last)
+        let p = watcher.scope.projectPath
+        watcher.fire("\(p)/lib/a.dart", "\(p)/ui/b.dart")
+        watcher.fire("\(p)/lib/a.dart")
+        watcher.fire("\(p)/ui/c.dart")
+        let reloaded = await waitUntil { d.restartCalls.count == 1 }
+        XCTAssertTrue(reloaded)
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(d.restartCalls, [false])
+        XCTAssertTrue(s.logs.contains { $0.text == "Changes detected in lib/a.dart and 2 more files → hot reload" },
+                      "\(s.logs.map(\.text))")
+    }
+
+    func testTwoSavesSaySingularMoreFile() async throws {
+        let (s, h, d) = try await runningSession()
+        let watcher = try XCTUnwrap(h.watchers.last)
+        let p = watcher.scope.projectPath
+        watcher.fire("\(p)/ui/a.dart", "\(p)/ui/b.dart")
+        _ = await waitUntil { d.restartCalls.count == 1 }
+        XCTAssertTrue(s.logs.contains { $0.text == "Changes detected in ui/a.dart and 1 more file → hot reload" },
+                      "\(s.logs.map(\.text))")
+    }
+
+    func testUnnamedChangeStillReloads() async throws {
+        let (s, h, d) = try await runningSession()
+        h.watchers.last?.fire()
+        _ = await waitUntil { d.restartCalls.count == 1 }
+        XCTAssertTrue(s.logs.contains { $0.text == "Change detected → hot reload" }, "\(s.logs.map(\.text))")
+    }
+
+    func testNextReloadOnlyNamesNewChanges() async throws {
+        let (s, h, d) = try await runningSession()
+        let watcher = try XCTUnwrap(h.watchers.last)
+        let p = watcher.scope.projectPath
+        watcher.fire("\(p)/lib/a.dart")
+        _ = await waitUntil { d.restartCalls.count == 1 && s.state == .running }
+        watcher.fire("\(p)/ui/b.dart")
+        let second = await waitUntil { d.restartCalls.count == 2 }
+        XCTAssertTrue(second)
+        XCTAssertTrue(s.logs.contains { $0.text == "Change detected in ui/b.dart → hot reload" }, "\(s.logs.map(\.text))")
+    }
+
+    func testLocalPackagesAreWatchedAndAnnounced() async throws {
+        let h = SessionHarness()
+        let path = try TestProject.make(name: "app")
+        let parent = (path as NSString).deletingLastPathComponent
+        try FileManager.default.createDirectory(atPath: "\(parent)/shared_ui/lib", withIntermediateDirectories: true)
+        try "name: app\ndependencies:\n  flutter:\n    sdk: flutter\n  shared_ui:\n    path: ../shared_ui\n"
+            .write(toFile: "\(path)/pubspec.yaml", atomically: true, encoding: .utf8)
+        let s = h.makeSession()
+        s.selectProject(path: path)
+        await s.refreshDevices()
+        await s.run()
+        let d = try XCTUnwrap(h.lastDaemon)
+        d.send(.appStarted)
+        _ = await waitUntil { s.state == .running }
+        let watcher = try XCTUnwrap(h.watchers.last)
+        XCTAssertEqual(watcher.scope.localPackages, ["shared_ui"])
+        XCTAssertTrue(s.logs.contains { $0.text == "Reload on save also watches local packages: shared_ui" }, "\(s.logs.map(\.text))")
+        watcher.fire("\(parent)/shared_ui/lib/card.dart")
+        let reloaded = await waitUntil { d.restartCalls == [false] }
+        XCTAssertTrue(reloaded)
+        XCTAssertTrue(s.logs.contains { $0.text == "Change detected in shared_ui/lib/card.dart → hot reload" }, "\(s.logs.map(\.text))")
+    }
+
+    func testPlainProjectDoesNotAnnounceLocalPackages() async throws {
+        let (s, _, _) = try await runningSession()
+        XCTAssertFalse(s.logs.contains { $0.text.contains("local packages") })
+    }
+
+    func testEachRunRereadsTheLocalPackages() async throws {
+        let (s, h, d) = try await runningSession()
+        let path = try XCTUnwrap(h.watchers.last).scope.projectPath
+        XCTAssertEqual(h.watchers.last?.scope.localPackages, [])
+        try FileManager.default.createDirectory(atPath: "\(path)/ui", withIntermediateDirectories: true)
+        try "name: demo\ndependencies:\n  flutter:\n    sdk: flutter\n  ui:\n    path: ui\n"
+            .write(toFile: "\(path)/pubspec.yaml", atomically: true, encoding: .utf8)
+        await s.stop()
+        _ = await waitUntil { s.state == .idle }
+        XCTAssertEqual(d.stopCalls, 1)
+        await s.run()
+        XCTAssertEqual(h.watchers.count, 2)
+        XCTAssertEqual(h.watchers.last?.scope.localPackages, ["ui"])
     }
 }

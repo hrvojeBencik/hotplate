@@ -105,13 +105,13 @@ extension SessionViewModel {
         m.log("The Dart VM service is listening on http://127.0.0.1:53210/abc=/", .normal)
         m.log("App started. Auto reload is on.", .success)
         m.log("flutter: [Posthog] Client initialised", .normal)
-        m.log("Change detected in lib/ → hot reload", .info)
+        m.log("Change detected in lib/features/tasks/presentation/widgets/task_card.dart → hot reload", .info)
         m.log("Hot reload done in 412 ms. Reloaded 3 of 1284 libraries in 397ms.", .success)
         m.log("Another exception was thrown: RenderFlex overflowed by 24 pixels on the bottom.", .error)
         m.log("#0      TaskCard.build (package:lootique/features/tasks/presentation/widgets/task_card.dart:118:14)", .error)
         m.log("The following plugins do not support Swift Package Manager for ios:", .warning)
         m.log("  - posthog_flutter", .warning)
-        m.log("Change detected in lib/ → hot reload", .info)
+        m.log("Change detected in ui/lib/buttons/primary_button.dart → hot reload", .info)
         m.log("Hot reload done in 388 ms. Reloaded 1 of 1284 libraries in 371ms.", .success)
         if case .failed(let msg) = state { m.log(msg, .error) }
         return m

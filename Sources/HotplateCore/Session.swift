@@ -494,11 +494,17 @@ public final class Session {
 
     private func startWatcher(project: Project) {
         stopWatcher()
+        let scope = WatchScope.forProject(at: project.path)
+        let changes = ChangedFiles()
         let debouncer = Debouncer(interval: Double(store.debounceMs) / 1000.0) { [weak self] in
-            Task { @MainActor in await self?.autoReloadFired() }
+            let files = changes.drain()
+            Task { @MainActor in await self?.autoReloadFired(files: files.map(scope.displayPath)) }
         }
         self.debouncer = debouncer
-        watcher = deps.startWatcher(project.libPath) { debouncer.trigger() }
+        watcher = deps.startWatcher(scope) { files in changes.add(files); debouncer.trigger() }
+        if !scope.localPackages.isEmpty {
+            log("Reload on save also watches local packages: \(scope.localPackages.joined(separator: ", "))", .info)
+        }
     }
 
     private func stopWatcher() {
@@ -506,13 +512,18 @@ public final class Session {
         debouncer?.cancel(); debouncer = nil
     }
 
-    private func autoReloadFired() async {
+    private func autoReloadFired(files: [String]) async {
         guard autoReload else { return }
         switch state {
         case .running, .reloading, .restarting: break
         default: return
         }
-        log("Change detected in lib/ → hot reload", .info)
+        switch files.count {
+        case 0: log("Change detected → hot reload", .info)
+        case 1: log("Change detected in \(files[0]) → hot reload", .info)
+        case 2: log("Changes detected in \(files[0]) and 1 more file → hot reload", .info)
+        default: log("Changes detected in \(files[0]) and \(files.count - 1) more files → hot reload", .info)
+        }
         await hotReload()
     }
 
@@ -574,5 +585,23 @@ public final class Session {
             log("Stopping…", .info)
         }
         await d.stop()
+    }
+}
+
+/// Files changed since the last auto reload, in first-seen order, collected from the watcher's queue.
+private final class ChangedFiles: @unchecked Sendable {
+    private let lock = NSLock()
+    private var files: [String] = []
+    private var seen: Set<String> = []
+
+    func add(_ new: [String]) {
+        lock.lock(); defer { lock.unlock() }
+        for f in new where seen.insert(f).inserted { files.append(f) }
+    }
+
+    func drain() -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        defer { files = []; seen = [] }
+        return files
     }
 }

@@ -143,7 +143,7 @@ struct MainWindow: View {
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .tint(Theme.accent)
-                .help("Hot reload whenever a .dart file in lib/ is saved  ⌘⇧A")
+                .help("Hot reload whenever a .dart file in the project or a local package is saved  ⌘⇧A")
             }
         }
         .padding(14)

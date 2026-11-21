@@ -37,14 +37,14 @@ public struct SessionDependencies {
     public var environment: (_ flutterPath: String) -> [String: String]
     public var listDevices: (_ flutterPath: String, _ environment: [String: String], _ projectPath: String?) async throws -> [FlutterDevice]
     public var makeDaemon: (DaemonConfig) -> SessionDaemon
-    /// Starts watching `path` for `.dart` changes and returns the running watcher.
-    public var startWatcher: (_ path: String, _ onChange: @escaping () -> Void) -> SessionWatcher
+    /// Starts watching `scope` and returns the running watcher; `onChange` gets the changed files that count.
+    public var startWatcher: (_ scope: WatchScope, _ onChange: @escaping ([String]) -> Void) -> SessionWatcher
 
     public init(locateFlutter: @escaping (String?) -> String?,
                 environment: @escaping (String) -> [String: String],
                 listDevices: @escaping (String, [String: String], String?) async throws -> [FlutterDevice],
                 makeDaemon: @escaping (DaemonConfig) -> SessionDaemon,
-                startWatcher: @escaping (String, @escaping () -> Void) -> SessionWatcher) {
+                startWatcher: @escaping (WatchScope, @escaping ([String]) -> Void) -> SessionWatcher) {
         self.locateFlutter = locateFlutter; self.environment = environment; self.listDevices = listDevices
         self.makeDaemon = makeDaemon; self.startWatcher = startWatcher
     }
@@ -60,8 +60,8 @@ public struct SessionDependencies {
                 FlutterDaemon(flutterPath: c.flutterPath, projectPath: c.projectPath, deviceId: c.deviceId,
                               extraArgs: c.extraArgs, environment: c.environment)
             },
-            startWatcher: { path, onChange in
-                let w = FileWatcher(path: path) { _ in onChange() }
+            startWatcher: { scope, onChange in
+                let w = FileWatcher(scope: scope, onChange: onChange)
                 w.start()
                 return w
             })

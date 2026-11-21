@@ -48,7 +48,7 @@ struct SettingsView: View {
             }
             Section("Auto reload") {
                 Stepper("Debounce: \(store.debounceMs) ms", value: $store.debounceMs, in: 100...3000, step: 100)
-                Text("Changes to .dart files under lib/ within this window are merged into one hot reload.")
+                Text("Changes to .dart files within this window are merged into one hot reload.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Command line") {

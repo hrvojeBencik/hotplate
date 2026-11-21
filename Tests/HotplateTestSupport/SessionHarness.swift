@@ -50,14 +50,18 @@ public final class FakeDaemon: SessionDaemon, @unchecked Sendable {
 }
 
 public final class FakeWatcher: SessionWatcher, @unchecked Sendable {
-    public let path: String
-    private let onChange: () -> Void
+    public let scope: WatchScope
+    private let onChange: ([String]) -> Void
     public private(set) var stopped = false
 
-    public init(path: String, onChange: @escaping () -> Void) { self.path = path; self.onChange = onChange }
+    public init(scope: WatchScope, onChange: @escaping ([String]) -> Void) { self.scope = scope; self.onChange = onChange }
     public func stop() { stopped = true }
-    /// Simulates a saved `.dart` file.
-    public func fire() { onChange() }
+    /// Simulates saving `paths`, filtered by the scope like the real watcher; with none, an unnamed `.dart` change.
+    public func fire(_ paths: String...) {
+        if paths.isEmpty { onChange([]); return }
+        let relevant = paths.filter(scope.isRelevant)
+        if !relevant.isEmpty { onChange(relevant) }
+    }
 }
 
 /// Builds a `Session` wired to fakes, with its own throwaway UserDefaults suite.
@@ -98,8 +102,8 @@ public final class SessionHarness: @unchecked Sendable {
             makeDaemon: { [weak self] config in
                 let d = FakeDaemon(config: config); self?.daemons.append(d); return d
             },
-            startWatcher: { [weak self] path, onChange in
-                let w = FakeWatcher(path: path, onChange: onChange); self?.watchers.append(w); return w
+            startWatcher: { [weak self] scope, onChange in
+                let w = FakeWatcher(scope: scope, onChange: onChange); self?.watchers.append(w); return w
             })
     }
 

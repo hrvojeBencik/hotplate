@@ -43,7 +43,7 @@ struct LogView: View {
             Text(model.project == nil ? "Choose a project to get started." : "Press Run to launch \(model.project!.name).")
                 .font(.system(size: 13))
                 .foregroundStyle(Theme.logMuted)
-            Text("Saving a .dart file in lib/ reloads the app while it runs.")
+            Text("Saving a .dart file in the project or a local package reloads the app while it runs.")
                 .font(.system(size: 11))
                 .foregroundStyle(Theme.logMuted.opacity(0.7))
         }

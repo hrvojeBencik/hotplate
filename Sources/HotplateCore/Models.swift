@@ -63,8 +63,6 @@ public struct Project: Identifiable, Hashable, Codable, Sendable {
         let name = PubspecReader.name(fromYaml: yaml) ?? (path as NSString).lastPathComponent
         return Project(path: path, name: name)
     }
-
-    public var libPath: String { (path as NSString).appendingPathComponent("lib") }
 }
 
 public enum RunnerError: LocalizedError, Sendable {
