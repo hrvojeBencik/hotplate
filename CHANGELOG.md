@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.0 — 2026-11-21
+
+- Reload on save now covers local packages you depend on with `path:`, such as a `ui/` package of shared widgets
+  (`path: ui`) or one outside the project (`path: ../shared_ui`), plus their own local packages and pub workspace
+  members (from `.dart_tool/package_config.json`). The log lists them when you press Run.
+- The whole project folder is watched, not only `lib/` (for example a `-t` target outside `lib/`).
+- Saving tests (`test/`, `integration_test/`, `test_driver/`), an `example/` app, platform folders, `build/` or hidden
+  folders such as `.dart_tool` doesn't reload.
+- The log names the file that changed: `Change detected in ui/lib/button.dart → hot reload`.
+
 ## 1.1.1 — 2026-10-09
 
 - Quitting the app right after Stop now waits for flutter to exit (and kills it if it hangs) instead of leaving it running.
